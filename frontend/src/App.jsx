@@ -1,0 +1,46 @@
+import {
+  BrowserRouter as Router,
+  Route,
+  Routes,
+  Navigate,
+  Outlet,
+} from "react-router-dom";
+import Sidebar from "./components/sidebar.jsx";
+import Login from "./pages/Login.jsx";
+import Dashboard from "./pages/dashboard.jsx";
+import TimeTracking from "./pages/Timetrackong.jsx";
+import Employees from "./pages/Employees.jsx";
+import Documents from "./pages/Documents.jsx";
+import TaskManagement from "./pages/TaskManagement.jsx";
+
+function AppLayout() {
+  return (
+    <div className="flex min-h-screen ">
+      <Sidebar />
+      <main className="flex-1 overflow-y-auto p-6">
+        <Outlet />
+      </main>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route element={<AppLayout />}>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/time-tracking" element={<TimeTracking />} />
+          <Route path="/employees" element={<Employees />} />
+          <Route path="/documents" element={<Documents />} />
+          <Route path="/tasks" element={<TaskManagement />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </Router>
+  );
+}
+
+export default App;
