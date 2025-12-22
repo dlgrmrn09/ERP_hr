@@ -21,6 +21,8 @@ SELECT e.employee_id AS id,
        e.phone_number,
        e.position_title,
        e.employment_status,
+       e.gender,
+       e.age,
        e.start_date,
        e.years_of_service,
        e.cv_url,
@@ -144,6 +146,25 @@ const normalizeOptional = (value) => {
   return value;
 };
 
+const parseNullableInteger = (value) => {
+  if (value === "" || typeof value === "undefined" || value === null) {
+    return null;
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+  return Math.trunc(parsed);
+};
+
+const normalizeGender = (value) => {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
+};
+
 const mapEmployeePayload = (payload) => ({
   employee_code: payload.employeeCode,
   first_name: payload.firstName,
@@ -152,6 +173,8 @@ const mapEmployeePayload = (payload) => ({
   phone_number: normalizeOptional(payload.phoneNumber),
   position_title: normalizeOptional(payload.positionTitle),
   employment_status: payload.employmentStatus,
+  gender: normalizeGender(payload.gender),
+  age: parseNullableInteger(payload.age),
   start_date: normalizeOptional(payload.startDate),
   cv_url: normalizeOptional(payload.cvUrl),
 });
@@ -175,10 +198,10 @@ export const createEmployee = asyncHandler(async (req, res) => {
   const result = await pool.query(
     `INSERT INTO employees (
        employee_code, first_name, last_name, email, phone_number,
-       position_title, employment_status, start_date, cv_url,
+       position_title, employment_status, gender, age, start_date, cv_url,
        created_by, updated_by
      )
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
      RETURNING employee_id AS id`,
     [
       payload.employee_code,
@@ -188,6 +211,8 @@ export const createEmployee = asyncHandler(async (req, res) => {
       payload.phone_number,
       payload.position_title,
       payload.employment_status,
+      payload.gender,
+      payload.age,
       payload.start_date,
       payload.cv_url,
       req.user?.id || null,

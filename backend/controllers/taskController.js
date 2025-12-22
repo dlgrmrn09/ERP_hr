@@ -136,6 +136,113 @@ export const deleteWorkspace = asyncHandler(async (req, res) => {
   res.status(204).end();
 });
 
+export const getTaskOverview = asyncHandler(async (req, res) => {
+  const [
+    boardsResult,
+    workspacesResult,
+    summaryResult,
+    statusResult,
+    boardDistributionResult,
+    feedResult,
+  ] = await Promise.all([
+    pool.query(
+      `SELECT b.board_id AS id,
+                b.workspace_id,
+                b.name,
+                b.description,
+                b.updated_at,
+                w.name AS workspace_name
+         FROM boards b
+         JOIN workspaces w ON w.workspace_id = b.workspace_id AND w.deleted_at IS NULL
+         WHERE b.deleted_at IS NULL
+         ORDER BY b.updated_at DESC
+         LIMIT 6`
+    ),
+    pool.query(
+      `SELECT workspace_id AS id, name, description, updated_at
+         FROM workspaces
+         WHERE deleted_at IS NULL
+         ORDER BY updated_at DESC NULLS LAST, created_at DESC
+         LIMIT 6`
+    ),
+    pool.query(
+      `SELECT COUNT(*)::int AS total,
+                COUNT(*) FILTER (WHERE status = 'Working On It')::int AS in_progress,
+                COUNT(*) FILTER (WHERE status = 'Done')::int AS done,
+                COUNT(*) FILTER (WHERE status = 'Stuck')::int AS stuck
+         FROM tasks
+         WHERE deleted_at IS NULL`
+    ),
+    pool.query(
+      `SELECT COALESCE(sg.name, 'Unassigned') AS name,
+                COUNT(*)::int AS count
+         FROM tasks t
+         LEFT JOIN status_groups sg ON sg.status_group_id = t.status_group_id
+         WHERE t.deleted_at IS NULL
+         GROUP BY 1
+         ORDER BY count DESC`
+    ),
+    pool.query(
+      `SELECT b.board_id AS id,
+                b.name,
+                COUNT(*)::int AS count
+         FROM tasks t
+         JOIN boards b ON b.board_id = t.board_id
+         WHERE t.deleted_at IS NULL
+         GROUP BY b.board_id, b.name
+         ORDER BY count DESC`
+    ),
+    pool.query(
+      `SELECT a.activity_id AS id,
+                a.task_id,
+                t.title AS task_title,
+                a.action,
+                a.detail,
+                a.created_at,
+                u.first_name AS actor_first_name,
+                u.last_name AS actor_last_name
+         FROM task_activity a
+         JOIN tasks t ON t.task_id = a.task_id
+         LEFT JOIN users u ON u.user_id = a.actor_id
+         ORDER BY a.created_at DESC
+         LIMIT 10`
+    ),
+  ]);
+
+  const summaryRow = summaryResult.rows[0] ?? {};
+
+  res.json({
+    boards: boardsResult.rows.map((row) => ({
+      id: row.id,
+      workspaceId: row.workspace_id,
+      name: row.name,
+      description: row.description,
+      workspaceName: row.workspace_name,
+      updatedAt: row.updated_at,
+    })),
+    workspaces: workspacesResult.rows,
+    summary: {
+      totalTasks: summaryRow.total ?? 0,
+      inProgressTasks: summaryRow.in_progress ?? 0,
+      doneTasks: summaryRow.done ?? 0,
+      stuckTasks: summaryRow.stuck ?? 0,
+    },
+    statusBreakdown: statusResult.rows,
+    boardDistribution: boardDistributionResult.rows,
+    feed: feedResult.rows.map((row) => ({
+      id: row.id,
+      taskId: row.task_id,
+      taskTitle: row.task_title,
+      action: row.action,
+      detail: row.detail,
+      createdAt: row.created_at,
+      actorName:
+        [row.actor_first_name, row.actor_last_name].filter(Boolean).join(" ") ||
+        null,
+    })),
+  });
+});
+
 const boardSelectBase = `
 SELECT b.board_id AS id,
        b.workspace_id,
@@ -703,6 +810,7 @@ export default {
   createWorkspace,
   updateWorkspace,
   deleteWorkspace,
+  getTaskOverview,
   listBoards,
   createBoard,
   updateBoard,

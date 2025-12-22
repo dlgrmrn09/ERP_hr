@@ -12,12 +12,17 @@ import TimeTracking from "./pages/Timetrackong.jsx";
 import Employees from "./pages/Employees.jsx";
 import Documents from "./pages/Documents.jsx";
 import TaskManagement from "./pages/TaskManagement.jsx";
+import Header from "./components/Header.jsx";
+import AllTasks from "./pages/AllTasks.jsx";
+import Workspace from "./pages/Workspace.jsx";
 
 function AppLayout() {
   return (
     <div className="flex min-h-screen ">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 overflow-y-auto ">
+        <Header />
+
         <Outlet />
       </main>
     </div>
@@ -36,6 +41,8 @@ function App() {
           <Route path="/employees" element={<Employees />} />
           <Route path="/documents" element={<Documents />} />
           <Route path="/tasks" element={<TaskManagement />} />
+          <Route path="/tasks/all-tasks" element={<AllTasks />} />
+          <Route path="/tasks/workspace" element={<Workspace />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

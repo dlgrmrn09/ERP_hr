@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import SidebarIcon from "../assets/sidebar.svg";
 import DashboardIcon from "../assets/icons8-dashboard.svg";
 import TimeIcon from "../assets/icons8-clock.svg";
@@ -7,6 +7,7 @@ import EmployeeIcon from "../assets/icons8-employee.svg";
 import DocumentIcon from "../assets/icons8-document.svg";
 import TaskIcon from "../assets/icons8-tasks.svg";
 import LogoutIcon from "../assets/icons8-logout.svg";
+import MoneyIcon from "../assets/icons8-money.svg";
 
 const navItems = [
   { label: "Dashboard", icon: DashboardIcon, path: "/dashboard" },
@@ -14,19 +15,37 @@ const navItems = [
   { label: "Ажилчид", icon: EmployeeIcon, path: "/employees" },
   { label: "Бичиг баримт", icon: DocumentIcon, path: "/documents" },
   { label: "Даалгавар", icon: TaskIcon, path: "/tasks" },
+  { label: "Цалин Бодох", icon: MoneyIcon, path: "/salary-calculation" },
+];
+
+const taskSubnavItems = [
+  { label: "Нүүр", path: "/tasks" },
+  { label: "Бүх ажилууд", path: "/tasks/all-tasks" },
+  { label: "Workspaces", path: "/tasks/workspace" },
 ];
 
 function Sidebar() {
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
+  const location = useLocation();
+  const isTasksRouteActive = location.pathname.startsWith("/tasks");
+  const isSubnavActive = (targetPath) => {
+    if (targetPath === "/tasks") {
+      return location.pathname === "/tasks" || location.pathname === "/tasks/";
+    }
+    return (
+      location.pathname === targetPath ||
+      location.pathname.startsWith(`${targetPath}/`)
+    );
+  };
 
   const toggleSidebar = () => setCollapsed((prev) => !prev);
 
   return (
     <aside
-      className={`min-h-dvh bg-white flex flex-col shadow-md ${
-        collapsed ? "items-center" : ""
+      className={`max-h-dvh bg-white flex flex-col shadow-md sticky top-0 left-0 ${
+        collapsed ? "items-center " : ""
       }`}
-      style={{ width: collapsed ? "80px" : "300px" }}
+      style={{ width: collapsed ? "80px" : "250px" }}
     >
       <div
         className={`flex items-center ${
@@ -34,7 +53,7 @@ function Sidebar() {
         } gap-3 p-6 mb-5`}
       >
         <h2
-          className={`text-[28px]  text-slate-900 font-bold ${
+          className={`text-[24px]  text-slate-900 font-bold ${
             collapsed ? "hidden" : "block"
           }`}
         >
@@ -92,6 +111,34 @@ function Sidebar() {
                   </>
                 )}
               </NavLink>
+              {item.path === "/tasks" && isTasksRouteActive && !collapsed && (
+                <ul className="mt-2 ml-10 space-y-1 border-l border-slate-300 pl-4">
+                  {taskSubnavItems.map((subItem) => (
+                    <li key={subItem.label}>
+                      <Link
+                        to={subItem.path}
+                        className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all ${
+                          isSubnavActive(subItem.path)
+                            ? " text-black"
+                            : "opacity-[0.6] text-black hover:bg-slate-100 hover:text-slate-900"
+                        }`}
+                        aria-current={
+                          isSubnavActive(subItem.path) ? "page" : undefined
+                        }
+                      >
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            isSubnavActive(subItem.path)
+                              ? "bg-black"
+                              : "bg-black opacity-[0.6]"
+                          }`}
+                        />
+                        <span>{subItem.label}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </li>
           ))}
         </ul>
@@ -112,7 +159,7 @@ function Sidebar() {
                 collapsed ? "hidden" : "block"
               }`}
             >
-              Logout
+              Системээс гарах
             </span>
           </button>
         </div>

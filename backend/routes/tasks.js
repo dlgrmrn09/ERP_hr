@@ -3,6 +3,7 @@ import { protect } from "../middleware/auth.js";
 import { authorize } from "../middleware/authorize.js";
 import {
   listTasks,
+  getTaskOverview,
   createTask,
   updateTask,
   deleteTask,
@@ -14,6 +15,7 @@ const router = express.Router();
 
 router.use(protect);
 
+router.get("/overview", authorize("tasks", "read"), getTaskOverview);
 router.get("/", authorize("tasks", "read"), listTasks);
 router.post("/", authorize("tasks", "create"), createTask);
 router.patch("/:id", authorize("tasks", "update"), updateTask);
