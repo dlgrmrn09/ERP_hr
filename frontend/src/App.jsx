@@ -8,7 +8,7 @@ import {
 import Sidebar from "./components/sidebar.jsx";
 import Login from "./pages/Login.jsx";
 import Dashboard from "./pages/dashboard.jsx";
-import TimeTracking from "./pages/Timetrackong.jsx";
+import TimeTracking from "./pages/Timetracking.jsx";
 import Employees from "./pages/Employees.jsx";
 import Documents from "./pages/Documents.jsx";
 import TaskManagement from "./pages/TaskManagement.jsx";

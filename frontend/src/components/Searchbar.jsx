@@ -21,7 +21,7 @@ function Searchbar({
         type="search"
         value={value}
         onChange={onChange}
-        placeholder={placeholder ? `Search ${placeholder}...` : "Search..."}
+        placeholder={placeholder ? ` ${placeholder} хайх...` : "Search..."}
         className="w-full rounded-2xl bg-transparent py-3 pl-12 pr-4 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none"
         {...inputProps}
       />
