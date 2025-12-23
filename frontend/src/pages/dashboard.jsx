@@ -42,17 +42,17 @@ const parseCount = (value) => {
 
 function StatCard({ label, value, delta, icon, loading }) {
   return (
-    <article className="rounded-[30px] bg-white p-6 shadow-lg">
+    <article className="rounded-[30px] bg-white p-6 shadow-lg mr-5">
       <div className="flex items-start justify-between">
         <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100">
           <img src={icon} alt="" className="h-6 w-6" />
         </span>
         <button
           type="button"
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-400"
+          className="flex h-6 w-6 items-center justify-center rounded-full  bg-[#191E21] text-white cursor-pointer"
           aria-label="More options"
         >
-          <span className="text-xl">•••</span>
+          <span className="text-m">•••</span>
         </button>
       </div>
       <p className="mt-4 text-lg font-medium text-slate-900">{label}</p>
@@ -78,15 +78,15 @@ function WorkStatusChart({ data, loading }) {
     .join(", ");
 
   return (
-    <article className="flex h-full flex-col rounded-[30px] bg-white p-6 shadow-lg">
+    <article className="flex h-full flex-col rounded-[30px] bg-white px-10 py-8 shadow-lg ">
       <header className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-slate-900">Ажлын төлөв</h2>
+        <h2 className="text-xl font-semibold text-slate-900 ">Ажлын төлөв</h2>
         <button
           type="button"
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-400"
+          className="flex h-6 w-6 items-center justify-center rounded-full  bg-[#191E21] text-white cursor-pointer"
           aria-label="More options"
         >
-          <span className="text-xl">•••</span>
+          <span className="text-m">•••</span>
         </button>
       </header>
       <div className="mt-6 flex flex-1 flex-col items-center justify-center gap-6">
@@ -249,7 +249,7 @@ function HiringCard({ name, role, date, avatar }) {
   }
 
   return (
-    <li className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <li className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 ">
       <div className="flex items-center gap-4">
         {avatar ? (
           <img
@@ -506,10 +506,10 @@ function Dashboard() {
             </div>
             <button
               type="button"
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-400"
+              className="flex h-6 w-6 items-center justify-center rounded-full  bg-[#191E21] text-white cursor-pointer"
               aria-label="More options"
             >
-              <span className="text-xl">•••</span>
+              <span className="text-m">•••</span>
             </button>
           </header>
           {loading && !employees.length ? (

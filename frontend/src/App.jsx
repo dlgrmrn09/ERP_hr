@@ -15,6 +15,7 @@ import TaskManagement from "./pages/TaskManagement.jsx";
 import Header from "./components/Header.jsx";
 import AllTasks from "./pages/AllTasks.jsx";
 import Workspace from "./pages/Workspace.jsx";
+import { useAuth } from "./context/AuthContext.jsx";
 
 function AppLayout() {
   return (
@@ -29,12 +30,39 @@ function AppLayout() {
   );
 }
 
+function ProtectedRoute() {
+  const { user } = useAuth();
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <AppLayout />;
+}
+
+function PublicRoute({ children }) {
+  const { user } = useAuth();
+
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+}
+
 function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route element={<AppLayout />}>
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          }
+        />
+        <Route element={<ProtectedRoute />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/time-tracking" element={<TimeTracking />} />

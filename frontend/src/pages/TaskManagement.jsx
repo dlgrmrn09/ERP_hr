@@ -501,7 +501,7 @@ function TaskManagement() {
               loading ? (
                 <p className="mt-6 text-sm text-slate-500">Ачаалж байна...</p>
               ) : overview.boards.length ? (
-                <div className="mt-6 grid  gap-y-4 grid-cols-[repeat(auto-fill,_minmax(280px,_310px))]">
+                <div className="mt-6 grid  gap-6 grid-cols-[repeat(auto-fill,_minmax(280px,_310px))]">
                   {overview.boards.map((board) => (
                     <article
                       key={board.id}
@@ -552,7 +552,7 @@ function TaskManagement() {
                     sectionsOpen.feed ? "rotate-90" : "rotate-0"
                   }`}
                 />
-                <span>Update Feed (Inbox)</span>
+                <span>Шинэ мэдээлэл</span>
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-xs font-semibold text-white">
                   {feedItems.length}
                 </span>

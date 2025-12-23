@@ -19,7 +19,7 @@ function Header() {
     : "Dashboard";
 
   return (
-    <header className="flex items-center justify-between bg-white shadow border-b border-gray-200 p-4 mb-6">
+    <header className="flex items-center justify-between   border-b border-gray-200 p-4 mb-6">
       <div className="flex  items-center gap-3 text-gray-700 font-medium  ">
         <button
           type="button"

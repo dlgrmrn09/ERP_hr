@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, NavLink, useLocation } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import SidebarIcon from "../assets/sidebar.svg";
 import DashboardIcon from "../assets/icons8-dashboard.svg";
 import TimeIcon from "../assets/icons8-clock.svg";
@@ -8,6 +8,7 @@ import DocumentIcon from "../assets/icons8-document.svg";
 import TaskIcon from "../assets/icons8-tasks.svg";
 import LogoutIcon from "../assets/icons8-logout.svg";
 import MoneyIcon from "../assets/icons8-money.svg";
+import { useAuth } from "../context/AuthContext.jsx";
 
 const navItems = [
   { label: "Dashboard", icon: DashboardIcon, path: "/dashboard" },
@@ -26,7 +27,10 @@ const taskSubnavItems = [
 
 function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
   const isTasksRouteActive = location.pathname.startsWith("/tasks");
   const isSubnavActive = (targetPath) => {
     if (targetPath === "/tasks") {
@@ -39,6 +43,19 @@ function Sidebar() {
   };
 
   const toggleSidebar = () => setCollapsed((prev) => !prev);
+  const handleLogout = async () => {
+    if (isLoggingOut) {
+      return;
+    }
+
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      setIsLoggingOut(false);
+      navigate("/login", { replace: true });
+    }
+  };
 
   return (
     <aside
@@ -145,9 +162,12 @@ function Sidebar() {
         <div className="p-4 space-y-1 border-t border-slate-300">
           <button
             type="button"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
             className={`w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer ${
               collapsed ? "justify-center" : ""
-            }`}
+            } ${isLoggingOut ? "opacity-60 cursor-not-allowed" : ""}`}
+            aria-disabled={isLoggingOut}
           >
             <img
               src={LogoutIcon}

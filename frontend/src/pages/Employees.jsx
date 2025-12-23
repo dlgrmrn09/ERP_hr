@@ -37,7 +37,7 @@ function EmployeeCard({ employee }) {
   const email = formatContact(employee.email);
 
   return (
-    <article className="flex flex-col gap-4 rounded-[30px] border border-slate-200/60 bg-white p-6 shadow-lg">
+    <article className="flex flex-col gap-4 rounded-[30px] border border-slate-300 bg-white p-6 ">
       <div className="flex items-start gap-4">
         <span className="flex h-16 w-16 items-center justify-center rounded-full bg-sky-100">
           <img
@@ -184,11 +184,11 @@ function Employees() {
 
   return (
     <section className="px-6 pb-12 mx-6 bg-white shadow-lg rounded-[30px]">
-      {/* {error && (
+      {error && (
         <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
-      )} */}
+      )}
 
       <div className="mb-6 flex flex-wrap items-center gap-4  border-slate-200/70 bg-white p-4 ">
         <select
