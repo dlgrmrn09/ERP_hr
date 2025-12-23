@@ -40,6 +40,287 @@ const parseCount = (value) => {
   return Number.isFinite(numeric) ? numeric : 0;
 };
 
+// Scrollable overview mimics the wide Figma frame while staying data-driven.
+function OverviewScrollable({
+  loading,
+  employeeTypes,
+  timeMetrics,
+  documentMetrics,
+  taskSummary,
+  attendanceBreakdown,
+  tasksByOwner,
+}) {
+  const totalEmployees = employeeTypes.reduce(
+    (acc, item) => acc + item.count,
+    0
+  );
+
+  let accumulated = 0;
+  const donutSegments = employeeTypes
+    .map((item) => {
+      const portion = totalEmployees ? (item.count / totalEmployees) * 100 : 0;
+      const start = accumulated;
+      accumulated += portion;
+      const end = Math.min(start + portion, 100);
+      return `${item.color} ${start}% ${end}%`;
+    })
+    .join(", ");
+
+  const maxOwnerCount = tasksByOwner.reduce(
+    (max, item) => Math.max(max, item.count),
+    0
+  );
+
+  return (
+    <section className="mb-8">
+      <div className="overflow-x-auto pb-4">
+        <div className="min-w-275 rounded-[40px] bg-linear-to-br from-[#e8f5ff] via-[#f3fbff] to-[#e3f5ff] p-6">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)]">
+            <article className="rounded-[30px] bg-white p-6 shadow-sm">
+              <header className="mb-4 flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-slate-900">
+                  Ажилчдын төрөл
+                </h2>
+                <button
+                  type="button"
+                  className="flex h-6 w-6 items-center justify-center rounded-full bg-[#191E21] text-white"
+                  aria-label="More options"
+                >
+                  <span>•••</span>
+                </button>
+              </header>
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative h-52 w-52">
+                  <div
+                    className="absolute inset-0 rounded-full border border-slate-100"
+                    style={{
+                      background: donutSegments
+                        ? `conic-gradient(${donutSegments})`
+                        : "#f8fafc",
+                    }}
+                    role="img"
+                    aria-label="Ажилчдын төрөл"
+                  />
+                  <div className="absolute inset-[22%] flex items-center justify-center rounded-full bg-white text-center shadow-inner">
+                    <span className="text-2xl font-bold text-slate-900">
+                      {loading ? "--" : formatNumber(totalEmployees)}
+                    </span>
+                  </div>
+                </div>
+                <ul className="flex flex-col gap-2 text-sm text-slate-700">
+                  {employeeTypes.map((item) => (
+                    <li key={item.id} className="flex items-center gap-2">
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <span className="font-medium">{item.label}</span>
+                      <span className="text-xs text-slate-500">
+                        {loading ? "--" : formatNumber(item.count)}
+                      </span>
+                    </li>
+                  ))}
+                  {employeeTypes.length === 0 && !loading && (
+                    <li className="text-xs text-slate-500">
+                      Өгөгдөл олдсонгүй.
+                    </li>
+                  )}
+                </ul>
+              </div>
+            </article>
+
+            <article className="rounded-[30px] bg-white p-6 shadow-sm">
+              <header className="mb-4 flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-slate-900">
+                  Цагын бүртгэл
+                </h2>
+                <button
+                  type="button"
+                  className="flex h-6 w-6 items-center justify-center rounded-full bg-[#191E21] text-white"
+                  aria-label="More options"
+                >
+                  <span>•••</span>
+                </button>
+              </header>
+              <dl className="flex flex-col gap-3 text-sm text-slate-700">
+                {timeMetrics.map((metric) => (
+                  <div
+                    key={metric.id}
+                    className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-2"
+                  >
+                    <dt className="font-medium">{metric.label}</dt>
+                    <dd className="text-slate-900">
+                      {loading ? "--" : metric.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </article>
+
+            <article className="rounded-[30px] bg-white p-6 shadow-sm">
+              <header className="mb-4 flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-slate-900">
+                  Бичиг баримт
+                </h2>
+                <button
+                  type="button"
+                  className="flex h-6 w-6 items-center justify-center rounded-full bg-[#191E21] text-white"
+                  aria-label="More options"
+                >
+                  <span>•••</span>
+                </button>
+              </header>
+              <dl className="flex flex-col gap-3 text-sm text-slate-700">
+                {documentMetrics.map((metric) => (
+                  <div
+                    key={metric.id}
+                    className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-2"
+                  >
+                    <dt className="font-medium">{metric.label}</dt>
+                    <dd className="text-slate-900">
+                      {loading ? "--" : metric.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </article>
+          </div>
+
+          <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {taskSummary.map((item) => (
+              <article
+                key={item.id}
+                className="flex flex-col items-center justify-between rounded-[30px] bg-white p-6 text-center shadow-sm"
+              >
+                <header className="mb-2 flex w-full items-center justify-between text-sm text-slate-500">
+                  <span>{item.label}</span>
+                  <button
+                    type="button"
+                    className="flex h-6 w-6 items-center justify-center rounded-full bg-[#191E21] text-white"
+                    aria-label="More options"
+                  >
+                    <span>•••</span>
+                  </button>
+                </header>
+                <p className="text-3xl font-bold text-slate-900">
+                  {loading ? "--" : item.value}
+                </p>
+              </article>
+            ))}
+          </div>
+
+          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+            <article className="rounded-[30px] bg-white p-6 shadow-sm">
+              <header className="mb-4 text-xl font-semibold text-slate-900">
+                Ирцийн тойм
+              </header>
+              {loading && attendanceBreakdown.length === 0 ? (
+                <p className="text-sm text-slate-500">Өгөгдөл татаж байна...</p>
+              ) : attendanceBreakdown.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  Ирцийн мэдээлэл олдсонгүй.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  <div className="flex h-24 overflow-hidden rounded-3xl border border-slate-200">
+                    {attendanceBreakdown.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-center text-sm font-semibold text-white"
+                        style={{
+                          width: item.percent,
+                          backgroundColor: item.color,
+                        }}
+                      >
+                        <span>
+                          {(() => {
+                            const percentValue = Number.parseFloat(
+                              item.percent
+                            );
+                            if (loading) {
+                              return "--";
+                            }
+                            return Number.isFinite(percentValue) &&
+                              percentValue >= 5
+                              ? item.percent
+                              : "";
+                          })()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <ul className="flex flex-wrap items-center gap-4 text-xs text-slate-600">
+                    {attendanceBreakdown.map((item) => (
+                      <li key={item.id} className="flex items-center gap-2">
+                        <span
+                          className="h-3 w-3 rounded-full"
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span className="font-medium">{item.label}</span>
+                        <span className="text-slate-500">
+                          {loading
+                            ? "--"
+                            : `${formatNumber(item.count)} • ${item.percent}`}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </article>
+
+            <article className="rounded-[30px] bg-white p-6 shadow-sm">
+              <header className="mb-4 flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-slate-900">
+                  Tasks by owner
+                </h2>
+                <button
+                  type="button"
+                  className="flex h-6 w-6 items-center justify-center rounded-full bg-[#191E21] text-white"
+                  aria-label="More options"
+                >
+                  <span>•••</span>
+                </button>
+              </header>
+              {loading ? (
+                <p className="text-sm text-slate-500">Өгөгдөл татаж байна...</p>
+              ) : tasksByOwner.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  Даалгаврын эзэмшигчийн мэдээлэл алга.
+                </p>
+              ) : (
+                <ul className="flex flex-col gap-3 text-sm text-slate-700">
+                  {tasksByOwner.map((item) => (
+                    <li key={item.label}>
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{item.label}</span>
+                        <span className="text-xs text-slate-500">
+                          {loading ? "--" : formatNumber(item.count)}
+                        </span>
+                      </div>
+                      <div className="mt-2 h-2 rounded-full bg-slate-100">
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: maxOwnerCount
+                              ? `${(item.count / maxOwnerCount) * 100}%`
+                              : "0%",
+                            backgroundColor: "#cbd5f5",
+                          }}
+                        />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function StatCard({ label, value, delta, icon, loading }) {
   return (
     <article className="rounded-[30px] bg-white p-6 shadow-lg mr-5">
@@ -465,6 +746,183 @@ function Dashboard() {
     [employees]
   );
 
+  const employeeTypeDistribution = useMemo(() => {
+    const total = parseCount(summary?.employees?.total);
+    const permanent = parseCount(summary?.employees?.permanent);
+    const interns = parseCount(summary?.employees?.interns);
+    const contract = Math.max(total - permanent - interns, 0);
+    return [
+      {
+        id: "contract",
+        label: "Гэрээт",
+        count: contract,
+        color: "#FFB411",
+      },
+      {
+        id: "permanent",
+        label: "Үндсэн",
+        count: permanent,
+        color: "#22F48B",
+      },
+      {
+        id: "intern",
+        label: "Дадлага",
+        count: interns,
+        color: "#0AA4FF",
+      },
+    ].filter((item) => item.count > 0);
+  }, [summary]);
+
+  const timeMetrics = useMemo(
+    () => [
+      {
+        id: "total",
+        label: "Нийт ажилтан",
+        value: formatNumber(summary?.employees?.total ?? 0),
+      },
+      {
+        id: "late",
+        label: "Хоцролт (тоо)",
+        value: formatNumber(summary?.attendance?.late ?? 0),
+      },
+      {
+        id: "absent",
+        label: "Тасалсан",
+        value: formatNumber(summary?.attendance?.absent ?? 0),
+      },
+      {
+        id: "overtime",
+        label: "Илүү цаг (мин)",
+        value: formatNumber(summary?.attendance?.overtimeMinutes ?? 0),
+      },
+      {
+        id: "leave",
+        label: "Амралт, чөлөө",
+        value: summary?.attendance?.leave
+          ? formatNumber(summary.attendance.leave)
+          : "--",
+      },
+    ],
+    [summary]
+  );
+
+  const documentMetrics = useMemo(
+    () => [
+      {
+        id: "total-docs",
+        label: "Нийт бичиг баримт",
+        value: formatNumber(summary?.documents?.total ?? 0),
+      },
+      {
+        id: "incoming-docs",
+        label: "Ирсэн бичиг баримт",
+        value: summary?.documents?.incoming
+          ? formatNumber(summary.documents.incoming)
+          : "--",
+      },
+      {
+        id: "outgoing-docs",
+        label: "Явуулсан бичиг баримт",
+        value: summary?.documents?.outgoing
+          ? formatNumber(summary.documents.outgoing)
+          : "--",
+      },
+      {
+        id: "pending-docs",
+        label: "Шийдэгдээгүй",
+        value: summary?.documents?.pending
+          ? formatNumber(summary.documents.pending)
+          : "--",
+      },
+      {
+        id: "resolved-docs",
+        label: "Шийдэгдсэн",
+        value: summary?.documents?.resolved
+          ? formatNumber(summary.documents.resolved)
+          : "--",
+      },
+    ],
+    [summary]
+  );
+
+  const taskSummaryCards = useMemo(
+    () => [
+      {
+        id: "all",
+        label: "All Tasks",
+        value: formatNumber(summary?.tasks?.total ?? 0),
+      },
+      {
+        id: "in-progress",
+        label: "In Progress",
+        value: formatNumber(summary?.tasks?.inProgress ?? 0),
+      },
+      {
+        id: "stuck",
+        label: "Stuck",
+        value: formatNumber(summary?.tasks?.stuck ?? 0),
+      },
+      {
+        id: "done",
+        label: "Done",
+        value: formatNumber(summary?.tasks?.done ?? 0),
+      },
+    ],
+    [summary]
+  );
+
+  const attendanceBreakdown = useMemo(() => {
+    const late = parseCount(summary?.attendance?.late);
+    const absent = parseCount(summary?.attendance?.absent);
+    const total = parseCount(summary?.employees?.total);
+    const present = Math.max(total - late - absent, 0);
+    const overall = late + absent + present;
+    if (overall === 0) {
+      return [];
+    }
+    const toPercent = (value) => `${((value / overall) * 100).toFixed(2)}%`;
+    return [
+      {
+        id: "present",
+        label: "Ирсэн",
+        count: present,
+        percent: toPercent(present),
+        color: "#22F48B",
+      },
+      {
+        id: "late",
+        label: "Хоцорсон",
+        count: late,
+        percent: toPercent(late),
+        color: "#FFB411",
+      },
+      {
+        id: "absent",
+        label: "Тасалсан",
+        count: absent,
+        percent: toPercent(absent),
+        color: "#FF4747",
+      },
+    ];
+  }, [summary]);
+
+  const tasksByOwner = useMemo(() => {
+    const rows = Array.isArray(summary?.tasks?.recent)
+      ? summary.tasks.recent
+      : [];
+    if (!rows.length) {
+      return [];
+    }
+    const counts = rows.reduce((acc, task) => {
+      const label = task.board_name ?? "Тодорхойгүй";
+      acc[label] = (acc[label] ?? 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(counts)
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [summary]);
+
   return (
     <section className="px-6 pb-12">
       {error && (
@@ -472,6 +930,15 @@ function Dashboard() {
           {error}
         </div>
       )}
+      <OverviewScrollable
+        loading={loading && !summary}
+        employeeTypes={employeeTypeDistribution}
+        timeMetrics={timeMetrics}
+        documentMetrics={documentMetrics}
+        taskSummary={taskSummaryCards}
+        attendanceBreakdown={attendanceBreakdown}
+        tasksByOwner={tasksByOwner}
+      />
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
         <div className="grid gap-6">
           <div className="grid gap-6 lg:grid-cols-[minmax(240px,320px)_minmax(0,1fr)]">
