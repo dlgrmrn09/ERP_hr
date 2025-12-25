@@ -251,8 +251,12 @@ SELECT b.board_id AS id,
        b.created_at,
        b.updated_at,
        b.created_by,
+       MAX(u.first_name) AS creator_first_name,
+       MAX(u.last_name) AS creator_last_name,
+       MAX(u.email) AS creator_email,
        COUNT(DISTINCT bm.employee_id) AS member_count
 FROM boards b
+LEFT JOIN users u ON u.user_id = b.created_by
 LEFT JOIN board_members bm ON bm.board_id = b.board_id
 WHERE b.deleted_at IS NULL`;
 
@@ -275,6 +279,37 @@ export const listBoards = asyncHandler(async (req, res) => {
 
   const boards = await pool.query(query, values);
   res.json({ data: boards.rows });
+});
+
+export const getBoard = asyncHandler(async (req, res) => {
+  const result = await pool.query(
+    `SELECT b.board_id AS id,
+            b.workspace_id,
+            w.name AS workspace_name,
+            b.name,
+            b.description,
+            b.created_at,
+            b.updated_at,
+            b.created_by,
+            MAX(u.first_name) AS creator_first_name,
+            MAX(u.last_name) AS creator_last_name,
+            MAX(u.email) AS creator_email,
+            COUNT(DISTINCT bm.employee_id) AS member_count
+     FROM boards b
+     LEFT JOIN workspaces w ON w.workspace_id = b.workspace_id AND w.deleted_at IS NULL
+     LEFT JOIN users u ON u.user_id = b.created_by
+     LEFT JOIN board_members bm ON bm.board_id = b.board_id
+     WHERE b.deleted_at IS NULL
+       AND b.board_id = $1
+     GROUP BY b.board_id, w.name`,
+    [req.params.id]
+  );
+
+  if (result.rows.length === 0) {
+    return res.status(404).json({ message: "Board not found" });
+  }
+
+  res.json({ board: result.rows[0] });
 });
 
 export const createBoard = asyncHandler(async (req, res) => {
@@ -365,6 +400,26 @@ export const deleteBoard = asyncHandler(async (req, res) => {
   }
 
   res.status(204).end();
+});
+
+export const listBoardMembers = asyncHandler(async (req, res) => {
+  const boardId = req.params.id;
+
+  const members = await pool.query(
+    `SELECT e.employee_id AS id,
+            e.first_name,
+            e.last_name,
+            e.email,
+            e.position_title
+     FROM board_members bm
+     JOIN employees e ON e.employee_id = bm.employee_id
+     WHERE bm.board_id = $1
+       AND e.deleted_at IS NULL
+     ORDER BY e.first_name, e.last_name`,
+    [boardId]
+  );
+
+  res.json({ data: members.rows });
 });
 
 export const addBoardMember = asyncHandler(async (req, res) => {
@@ -484,36 +539,74 @@ export const listTasks = asyncHandler(async (req, res) => {
 export const createTask = asyncHandler(async (req, res) => {
   const {
     boardId,
+    board_id,
+    board,
     statusGroupId,
+    status_group_id,
     title,
+    name,
     taskGroup,
     description,
     plannedStartDate,
     plannedEndDate,
     status,
-    assigneeIds = [],
+    assigneeIds,
+    assignee_ids,
   } = req.body;
 
-  if (!boardId || !title) {
+  const normalizeIdentifier = (value) => {
+    if (value === null || typeof value === "undefined") {
+      return null;
+    }
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      return trimmed.length ? trimmed : null;
+    }
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : null;
+    }
+    return null;
+  };
+
+  const normalizedBoardId =
+    normalizeIdentifier(boardId) ??
+    normalizeIdentifier(board_id) ??
+    normalizeIdentifier(board?.id) ??
+    normalizeIdentifier(req.query?.boardId);
+
+  const normalizedStatusGroupId =
+    normalizeIdentifier(statusGroupId) ??
+    normalizeIdentifier(status_group_id) ??
+    normalizeIdentifier(req.query?.statusGroupId);
+
+  const normalizedTitle = (title ?? name ?? "").trim();
+
+  const normalizedAssigneeIds = Array.isArray(assigneeIds ?? assignee_ids)
+    ? (assigneeIds ?? assignee_ids)
+        .map((value) => normalizeIdentifier(value))
+        .filter((value) => value !== null)
+    : [];
+
+  if (!normalizedBoardId || !normalizedTitle) {
     return res.status(400).json({ message: "Missing required fields" });
   }
 
   const boardExists = await pool.query(
     `SELECT 1 FROM boards WHERE board_id = $1 AND deleted_at IS NULL`,
-    [boardId]
+    [normalizedBoardId]
   );
   if (boardExists.rows.length === 0) {
     return res.status(400).json({ message: "Board not found" });
   }
 
-  const statusGroupCheck = statusGroupId
+  const statusGroupCheck = normalizedStatusGroupId
     ? await pool.query(
         `SELECT 1 FROM status_groups WHERE status_group_id = $1 AND board_id = $2`,
-        [statusGroupId, boardId]
+        [normalizedStatusGroupId, normalizedBoardId]
       )
     : { rows: [{ exists: true }] };
 
-  if (statusGroupId && statusGroupCheck.rows.length === 0) {
+  if (normalizedStatusGroupId && statusGroupCheck.rows.length === 0) {
     return res.status(400).json({ message: "Invalid status group" });
   }
 
@@ -525,9 +618,9 @@ export const createTask = asyncHandler(async (req, res) => {
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$9)
      RETURNING task_id AS id`,
     [
-      boardId,
-      statusGroupId ?? null,
-      title,
+      normalizedBoardId,
+      normalizedStatusGroupId ?? null,
+      normalizedTitle,
       taskGroup,
       description,
       plannedStartDate ?? null,
@@ -539,9 +632,9 @@ export const createTask = asyncHandler(async (req, res) => {
 
   const taskId = insertResult.rows[0].id;
 
-  if (Array.isArray(assigneeIds) && assigneeIds.length > 0) {
+  if (normalizedAssigneeIds.length > 0) {
     const assigneeValues = [];
-    const placeholders = assigneeIds
+    const placeholders = normalizedAssigneeIds
       .map((employeeId, index) => {
         assigneeValues.push(taskId, employeeId);
         const base = index * 2;
@@ -776,33 +869,85 @@ export const deleteStatusGroup = asyncHandler(async (req, res) => {
   res.status(204).end();
 });
 
+const mapTaskActivityRow = (row) => ({
+  id: row.id,
+  taskId: row.task_id,
+  action: row.action,
+  message: row.detail,
+  createdAt: row.created_at,
+  actor: row.actor_id
+    ? {
+        id: row.actor_id,
+        firstName: row.actor_first_name ?? null,
+        lastName: row.actor_last_name ?? null,
+        displayName:
+          [row.actor_first_name, row.actor_last_name]
+            .filter(Boolean)
+            .join(" ") || null,
+      }
+    : null,
+});
+
 export const listTaskActivity = asyncHandler(async (req, res) => {
   const taskId = req.params.id;
   const result = await pool.query(
-    `SELECT activity_id AS id, task_id, actor_id, action, detail, created_at
-     FROM task_activity
-     WHERE task_id = $1
-     ORDER BY created_at DESC`,
+    `SELECT a.activity_id AS id,
+            a.task_id,
+            a.actor_id,
+            a.action,
+            a.detail,
+            a.created_at,
+            u.first_name AS actor_first_name,
+            u.last_name AS actor_last_name
+     FROM task_activity a
+     LEFT JOIN users u ON u.user_id = a.actor_id
+     WHERE a.task_id = $1
+     ORDER BY a.created_at ASC`,
     [taskId]
   );
-  res.json({ data: result.rows });
+  res.json({ data: result.rows.map(mapTaskActivityRow) });
 });
 
 export const addTaskActivity = asyncHandler(async (req, res) => {
   const taskId = req.params.id;
-  const { action, detail } = req.body;
-  if (!action) {
-    return res.status(400).json({ message: "Action is required" });
+  const { action, detail, message } = req.body;
+  const trimmedDetail = typeof detail === "string" ? detail.trim() : null;
+  const trimmedMessage = typeof message === "string" ? message.trim() : null;
+  const activityMessage = trimmedMessage || trimmedDetail;
+
+  if (!activityMessage) {
+    return res.status(400).json({ message: "Message is required" });
   }
+
+  const resolvedAction = (action || "comment").trim() || "comment";
 
   const insertResult = await pool.query(
     `INSERT INTO task_activity (task_id, actor_id, action, detail)
      VALUES ($1,$2,$3,$4)
      RETURNING activity_id AS id, task_id, actor_id, action, detail, created_at`,
-    [taskId, req.user?.id || null, action, detail ?? null]
+    [taskId, req.user?.id || null, resolvedAction, activityMessage]
   );
 
-  res.status(201).json({ activity: insertResult.rows[0] });
+  const activityRow = insertResult.rows[0];
+
+  const [lookup] = (
+    await pool.query(
+      `SELECT a.activity_id AS id,
+              a.task_id,
+              a.actor_id,
+              a.action,
+              a.detail,
+              a.created_at,
+              u.first_name AS actor_first_name,
+              u.last_name AS actor_last_name
+       FROM task_activity a
+       LEFT JOIN users u ON u.user_id = a.actor_id
+       WHERE a.activity_id = $1`,
+      [activityRow.id]
+    )
+  ).rows;
+
+  res.status(201).json({ activity: mapTaskActivityRow(lookup ?? activityRow) });
 });
 
 export default {

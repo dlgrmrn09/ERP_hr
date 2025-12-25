@@ -3,9 +3,11 @@ import { protect } from "../middleware/auth.js";
 import { authorize } from "../middleware/authorize.js";
 import {
   listBoards,
+  getBoard,
   createBoard,
   updateBoard,
   deleteBoard,
+  listBoardMembers,
   addBoardMember,
   removeBoardMember,
   listStatusGroups,
@@ -19,9 +21,11 @@ const router = express.Router();
 router.use(protect);
 
 router.get("/", authorize("boards", "read"), listBoards);
+router.get("/:id", authorize("boards", "read"), getBoard);
 router.post("/", authorize("boards", "create"), createBoard);
 router.patch("/:id", authorize("boards", "update"), updateBoard);
 router.delete("/:id", authorize("boards", "delete"), deleteBoard);
+router.get("/:id/members", authorize("boards", "read"), listBoardMembers);
 router.post("/:id/members", authorize("boards", "update"), addBoardMember);
 router.delete(
   "/:id/members/:employeeId",

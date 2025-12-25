@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ProfileModal from "../components/Profile.jsx";
 import apiClient from "../utils/apiClient";
 import Searchbar from "../components/Searchbar.jsx";
-import EmployeeIcon from "../assets/icons8-employee.svg";
 import WhiteButton from "../components/WhiteButton.jsx";
 
 const API_PAGE_SIZE = 500;
@@ -32,6 +32,66 @@ const sortLabels = (values) =>
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b, "mn-MN", { sensitivity: "base" }));
 
+const buildInitials = ({
+  first_name: firstName,
+  last_name: lastName,
+  employee_code: code,
+}) => {
+  const trimmedFirst = (firstName ?? "").trim();
+  const trimmedLast = (lastName ?? "").trim();
+  const firstInitial = trimmedFirst ? trimmedFirst[0].toUpperCase() : "";
+  const lastInitial = trimmedLast ? trimmedLast[0].toUpperCase() : "";
+  if (firstInitial && lastInitial) {
+    return `${firstInitial}${lastInitial}`;
+  }
+  if (firstInitial) {
+    return firstInitial;
+  }
+  if (lastInitial) {
+    return lastInitial;
+  }
+  const fallback = (code ?? "").trim();
+  return fallback ? fallback[0].toUpperCase() : "?";
+};
+
+const AVATAR_COLORS = [
+  { bg: "#DBEAFE", fg: "#1E40AF" },
+  { bg: "#DCFCE7", fg: "#166534" },
+  { bg: "#FEE2E2", fg: "#991B1B" },
+  { bg: "#F3E8FF", fg: "#6B21A8" },
+  { bg: "#FFF7ED", fg: "#9A3412" },
+  { bg: "#E0E7FF", fg: "#4338CA" },
+  { bg: "#FEF2F2", fg: "#B91C1C" },
+  { bg: "#ECFDF5", fg: "#047857" },
+];
+
+const hashString = (value) => {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(index);
+    hash |= 0;
+  }
+  return hash;
+};
+
+const selectAvatarColors = (employee) => {
+  const source = [
+    employee.first_name,
+    employee.last_name,
+    employee.employee_code,
+    employee.id,
+  ]
+    .filter(Boolean)
+    .join("");
+
+  if (!source) {
+    return AVATAR_COLORS[0];
+  }
+
+  const index = Math.abs(hashString(String(source))) % AVATAR_COLORS.length;
+  return AVATAR_COLORS[index];
+};
+
 const SORT_FIELDS = [
   { value: "last_name", label: "Овгоор" },
   { value: "first_name", label: "Нэрээр" },
@@ -50,9 +110,14 @@ const FORM_INITIAL_STATE = {
   employmentStatus: "",
   gender: "",
   age: "",
-  startDate: "",
+  startDate: new Date().toISOString().slice(0, 10),
   cvUrl: "",
 };
+
+const GENDER_OPTIONS = [
+  { value: "Эр", label: "Эр" },
+  { value: "Эм", label: "Эм" },
+];
 
 const REQUIRED_FIELDS = {
   employeeCode: "Ажилтны код",
@@ -135,6 +200,45 @@ function FilterSelect({
   allowEmpty = true,
   uppercaseLabel = true,
 }) {
+  const triggerRef = useRef(null);
+  const menuRef = useRef(null);
+  const [openMenu, setOpenMenu] = useState(false);
+
+  const activeOption = options.find((option) => option.value === value);
+  const displayLabel = activeOption?.label || placeholder || "Сонгох";
+  const isPlaceholder = !activeOption && allowEmpty && Boolean(placeholder);
+
+  useEffect(() => {
+    if (!openMenu) {
+      return undefined;
+    }
+    const handleClickOutside = (event) => {
+      if (
+        triggerRef.current?.contains(event.target) ||
+        menuRef.current?.contains(event.target)
+      ) {
+        return;
+      }
+      setOpenMenu(false);
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setOpenMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [openMenu]);
+
+  const handleSelect = (nextValue) => {
+    onChange({ target: { value: nextValue } });
+    setOpenMenu(false);
+  };
+
   return (
     <label
       className={`flex flex-col gap-2 text-xs font-semibold ${
@@ -142,38 +246,93 @@ function FilterSelect({
       } text-slate-500 ${className}`}
     >
       <span>{label}</span>
-      <div className="relative">
-        <select
-          value={value}
-          onChange={onChange}
-          className="h-12 w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 pr-11 text-sm font-medium text-slate-700 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
+      <div className="relative w-87.5">
+        <button
+          type="button"
+          ref={triggerRef}
+          onClick={() => setOpenMenu((previous) => !previous)}
+          className={`flex h-12 w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-sky-100 ${
+            openMenu ? "border-sky-400" : "hover:border-sky-300"
+          }`}
+          aria-haspopup="listbox"
+          aria-expanded={openMenu}
         >
-          {allowEmpty && placeholder ? (
-            <option value="">{placeholder}</option>
-          ) : null}
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            className="h-4 w-4"
-            aria-hidden="true"
+          <span
+            className={`truncate ${
+              isPlaceholder ? "text-slate-400 font-medium" : "text-slate-700"
+            }`}
           >
-            <path
-              d="M6 8l4 4 4-4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </span>
+            {displayLabel}
+          </span>
+          <span className="ml-3 inline-flex items-center text-slate-400">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className={`h-4 w-4 transition-transform ${
+                openMenu ? "rotate-180" : ""
+              }`}
+              aria-hidden="true"
+            >
+              <path
+                d="M6 8l4 4 4-4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        </button>
+
+        {openMenu ? (
+          <div
+            ref={menuRef}
+            className="absolute left-0 right-0 top-[calc(100%+8px)] z-10 rounded-2xl border border-slate-200 bg-white py-1 shadow-[0_20px_40px_rgba(15,23,42,0.08)]"
+          >
+            <ul role="listbox" className="max-h-60 overflow-y-auto py-1">
+              {allowEmpty && placeholder ? (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => handleSelect("")}
+                    className={`flex w-full items-center justify-between px-4 py-2 text-left text-sm font-medium transition hover:bg-slate-50 ${
+                      value === "" ? "text-sky-600" : "text-slate-600"
+                    }`}
+                    role="option"
+                    aria-selected={value === ""}
+                  >
+                    {placeholder}
+                    {value === "" ? (
+                      <span className="text-xs font-semibold uppercase tracking-wide text-sky-500"></span>
+                    ) : null}
+                  </button>
+                </li>
+              ) : null}
+              {options.map((option) => {
+                const isActive = option.value === value;
+                return (
+                  <li key={option.value}>
+                    <button
+                      type="button"
+                      onClick={() => handleSelect(option.value)}
+                      className={`flex w-full items-center justify-between px-4 py-2 text-left text-sm font-medium transition hover:bg-slate-50 ${
+                        isActive ? "text-sky-600" : "text-slate-600"
+                      }`}
+                      role="option"
+                      aria-selected={isActive}
+                    >
+                      {option.label}
+                      {isActive ? (
+                        <span className="text-xs font-semibold uppercase tracking-wide text-sky-500"></span>
+                      ) : null}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
       </div>
     </label>
   );
@@ -182,8 +341,7 @@ function FilterSelect({
 function SortDirectionToggle({ value, onChange }) {
   return (
     <fieldset className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-      <legend>Эрэмбийн чиглэл</legend>
-      <div className="inline-flex w-full items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1">
+      <div className="inline-flex w-full items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1 mt-6">
         {["asc", "desc"].map((direction) => {
           const isActive = value === direction;
           return (
@@ -193,7 +351,7 @@ function SortDirectionToggle({ value, onChange }) {
               onClick={() => onChange(direction)}
               className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 ${
                 isActive
-                  ? "bg-sky-500 text-white shadow-[0_12px_20px_rgba(14,116,144,0.2)]"
+                  ? "bg-[#191e21] text-white shadow-[0_12px_20px_rgba(14,116,144,0.2)]"
                   : "text-slate-600 hover:bg-white"
               }`}
               aria-pressed={isActive}
@@ -223,7 +381,7 @@ function PaginationControls({
 
   return (
     <nav
-      className="mt-10 flex flex-col gap-4 rounded-[24px] border border-slate-200/70 bg-white/60 px-4 py-3 text-sm text-slate-600 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+      className="mt-10 flex flex-col gap-4 rounded-3xl border border-slate-200/70 bg-white/60 px-4 py-3 text-sm text-slate-600 shadow-sm sm:flex-row sm:items-center sm:justify-between"
       aria-label="Хуудаслалт"
     >
       <div className="flex items-center gap-3">
@@ -262,7 +420,7 @@ function PaginationControls({
                 type="button"
                 key={pageNumber}
                 onClick={() => onPageChange(pageNumber)}
-                className={`h-10 min-w-[40px] rounded-full border px-3 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-sky-100 ${
+                className={`h-10 min-w-10 rounded-full border px-3 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-sky-100 ${
                   isActive
                     ? "border-sky-500 bg-sky-500 text-white shadow-[0_12px_20px_rgba(14,116,144,0.18)]"
                     : "border-slate-200 bg-white text-slate-600 hover:border-sky-400 hover:text-sky-600"
@@ -287,42 +445,66 @@ function PaginationControls({
   );
 }
 
-function EmployeeCard({ employee, onEdit, onDelete, isDeleting }) {
+function EmployeeCard({ employee, onEdit, onDelete, onView, isDeleting }) {
   const fullName = composeFullName(employee);
   const position = employee.position_title || "Албан тушаал тодорхойгүй";
   const status = employee.employment_status || "Статус тодорхойгүй";
   const phone = formatContact(employee.phone_number);
   const email = formatContact(employee.email);
+  const initials = buildInitials(employee);
+  const avatarColors = selectAvatarColors(employee);
+
+  const handleView = () => {
+    onView?.(employee);
+  };
+
+  const handleCardKeyDown = (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleView();
+    }
+  };
 
   return (
-    <article className="flex flex-col gap-4 rounded-[30px] border border-slate-300 bg-white p-6">
-      <div className="flex items-start gap-4">
-        <span className="flex h-16 w-16 items-center justify-center rounded-full bg-sky-100">
-          <img
-            src={EmployeeIcon}
-            alt=""
-            className="h-10 w-10"
-            aria-hidden="true"
-          />
+    <article
+      className="flex flex-col gap-4 rounded-[30px] border border-slate-300 bg-white p-6 cursor-pointer shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+      onClick={handleView}
+      onKeyDown={handleCardKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-label={`${fullName} дэлгэрэнгүй`}
+    >
+      <div className="flex items-start gap-4 ">
+        <span
+          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-lg font-semibold uppercase"
+          style={{ backgroundColor: avatarColors.bg, color: avatarColors.fg }}
+        >
+          {initials}
         </span>
         <div className="flex flex-1 flex-col gap-1 text-slate-700">
           <p className="text-lg font-semibold text-slate-900">{fullName}</p>
           <p className="text-sm text-slate-600">{position}</p>
           <p className="text-sm font-medium text-sky-600">{status}</p>
         </div>
-        <div className="flex items-start gap-2">
+        <div className="flex flex-wrap items-start justify-end gap-2">
           <button
             type="button"
-            onClick={() => onEdit?.(employee)}
-            className="inline-flex items-center rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-sky-300 hover:text-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-100"
+            onClick={(event) => {
+              event.stopPropagation();
+              onEdit?.(employee);
+            }}
+            className="inline-flex w-full items-center justify-center rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-sky-300 hover:text-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-100 sm:w-auto"
             title="Мэдээлэл засах"
           >
             Засах
           </button>
           <button
             type="button"
-            onClick={() => onDelete?.(employee)}
-            className="inline-flex items-center rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 transition hover:border-red-300 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+            onClick={(event) => {
+              event.stopPropagation();
+              onDelete?.(employee);
+            }}
+            className="inline-flex w-full items-center justify-center rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 transition hover:border-red-300 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 sm:w-auto"
             title="Ажилтныг устгах"
             disabled={isDeleting}
           >
@@ -503,12 +685,18 @@ function EmployeeFormModal({
             </label>
             <label className="flex flex-col gap-2 text-sm font-medium text-slate-600">
               <span>Хүйс</span>
-              <input
-                type="text"
+              <select
                 value={values.gender}
                 onChange={handleFieldChange("gender")}
                 className="h-11 rounded-2xl border border-slate-300 px-4 text-sm font-normal text-slate-700 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
-              />
+              >
+                <option value="">Сонгох</option>
+                {GENDER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
               {renderError("gender")}
             </label>
             <label className="flex flex-col gap-2 text-sm font-medium text-slate-600">
@@ -540,7 +728,7 @@ function EmployeeFormModal({
               onClick={onClose}
               className="inline-flex h-11 items-center justify-center rounded-full border border-slate-200 px-5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
             >
-              Болих
+              Цуцлах
             </button>
             <button
               type="submit"
@@ -551,7 +739,7 @@ function EmployeeFormModal({
                 ? "Хадгалж байна..."
                 : isEdit
                 ? "Шинэчлэх"
-                : "Нэмэх"}
+                : "Хадгалах"}
             </button>
           </div>
         </form>
@@ -582,6 +770,8 @@ function Employees() {
   const [deletingId, setDeletingId] = useState(null);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -760,6 +950,11 @@ function Employees() {
   };
 
   const openEditForm = (employee) => {
+    if (!employee) {
+      return;
+    }
+    setIsProfileOpen(false);
+    setSelectedEmployeeId(null);
     setFormValues(normalizeEmployeeForForm(employee));
     setEditingEmployee(employee);
     setFormErrors({});
@@ -773,6 +968,19 @@ function Employees() {
     setFormValues(FORM_INITIAL_STATE);
     setFormErrors({});
     setSubmitError(null);
+  };
+
+  const openProfileModal = (employee) => {
+    if (!employee?.id) {
+      return;
+    }
+    setSelectedEmployeeId(employee.id);
+    setIsProfileOpen(true);
+  };
+
+  const closeProfileModal = () => {
+    setIsProfileOpen(false);
+    setSelectedEmployeeId(null);
   };
 
   const handleFormChange = (field, value) => {
@@ -858,6 +1066,9 @@ function Employees() {
     try {
       await apiClient.delete(`/employees/${employee.id}`);
       triggerRefresh();
+      if (employee.id === selectedEmployeeId) {
+        closeProfileModal();
+      }
     } catch (err) {
       const message =
         err.response?.data?.message ??
@@ -876,7 +1087,7 @@ function Employees() {
         </div>
       )}
 
-      <div className="mb-6 space-y-5 rounded-[30px] border border-slate-200/70 bg-white p-5">
+      <div className="mb-6 space-y-5 rounded-[30px]  bg-white p-5">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <FilterSelect
             label="Албан тушаал"
@@ -922,18 +1133,13 @@ function Employees() {
         </div>
 
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4 w-100">
             <Searchbar
-              placeholder="Нэр, код, утас, имэйл..."
+              placeholder="Ажилтан"
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              className="w-full min-w-[240px] max-w-[360px]"
+              className="w-full min-w-60 max-w-90"
             />
-            {totalFiltered > 0 ? (
-              <span className="inline-flex h-10 items-center rounded-full bg-slate-100 px-4 text-sm font-semibold text-slate-600">
-                {pageStart} - {pageEnd} / {totalFiltered}
-              </span>
-            ) : null}
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -959,7 +1165,7 @@ function Employees() {
                   d="M3 5h18M6 12h12M10 19h4"
                 />
               </svg>
-              Filter
+              Цэвэрлэх
               {hasActiveFilters && (
                 <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-sky-500 px-1 text-xs font-bold text-white">
                   •
@@ -971,7 +1177,7 @@ function Employees() {
               label="Ажилтан нэмэх"
               onClick={openCreateForm}
               ariaLabel="Ажилтан нэмэх"
-              className="h-11 px-5 border-sky-500 bg-sky-500 text-white transition hover:border-sky-600 hover:bg-sky-600 hover:text-white"
+              className="h-11 px-5 border-sky-500 bg-sky-500 text-black transition hover:border-sky-600 hover:bg-[#191e21] "
             />
           </div>
         </div>
@@ -998,6 +1204,7 @@ function Employees() {
               employee={employee}
               onEdit={openEditForm}
               onDelete={handleDeleteEmployee}
+              onView={openProfileModal}
               isDeleting={deletingId === employee.id}
             />
           ))}
@@ -1031,6 +1238,22 @@ function Employees() {
         departmentOptions={departmentOptions}
         submitError={submitError}
       />
+      <ProfileModal
+        isOpen={isProfileOpen}
+        employeeId={selectedEmployeeId}
+        onClose={closeProfileModal}
+        onEdit={(employee) => {
+          if (!employee) {
+            return;
+          }
+          openEditForm(employee);
+        }}
+      />
+      {totalFiltered > 0 ? (
+        <span className="inline-flex h-10 items-center rounded-full bg-slate-100 px-4 text-sm font-semibold text-slate-600 mt-5">
+          {pageStart} - {pageEnd} / {totalFiltered}
+        </span>
+      ) : null}
     </section>
   );
 }

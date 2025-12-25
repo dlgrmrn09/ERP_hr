@@ -66,6 +66,14 @@ export const listDocuments = asyncHandler(async (req, res) => {
   });
 });
 
+export const listDocumentCategories = asyncHandler(async (_req, res) => {
+  const result = await pool.query(
+    `SELECT name FROM document_categories ORDER BY name ASC`
+  );
+
+  res.json({ categories: result.rows.map((row) => row.name) });
+});
+
 export const getDocument = asyncHandler(async (req, res) => {
   const result = await pool.query(
     `${baseSelect}
@@ -219,6 +227,7 @@ export const deleteDocument = asyncHandler(async (req, res) => {
 
 export default {
   listDocuments,
+  listDocumentCategories,
   getDocument,
   createDocument,
   updateDocument,

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import apiClient from "../utils/apiClient";
+import { Link, useNavigate } from "react-router-dom";
+import ProfileModal from "../components/Profile.jsx";
 
 const ICON_EMPLOYEES =
   "https://www.figma.com/api/mcp/asset/e34c8037-bafd-4c73-a14f-26d998d8cf60";
@@ -72,11 +74,11 @@ function OverviewScrollable({
   );
 
   return (
-    <section className="mb-8">
+    <section className="mt-6">
       <div className="overflow-x-auto pb-4">
-        <div className="min-w-275 rounded-[40px] bg-linear-to-br from-[#e8f5ff] via-[#f3fbff] to-[#e3f5ff] p-6">
+        <div className="min-w-275 rounded-[30px]  ">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)]">
-            <article className="rounded-[30px] bg-white p-6 shadow-sm">
+            <article className="rounded-[30px] bg-white p-6 shadow-lg">
               <header className="mb-4 flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-slate-900">
                   Ажилчдын төрөл
@@ -128,36 +130,37 @@ function OverviewScrollable({
                 </ul>
               </div>
             </article>
-
-            <article className="rounded-[30px] bg-white p-6 shadow-sm">
-              <header className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-slate-900">
-                  Цагын бүртгэл
-                </h2>
-                <button
-                  type="button"
-                  className="flex h-6 w-6 items-center justify-center rounded-full bg-[#191E21] text-white"
-                  aria-label="More options"
-                >
-                  <span>•••</span>
-                </button>
-              </header>
-              <dl className="flex flex-col gap-3 text-sm text-slate-700">
-                {timeMetrics.map((metric) => (
-                  <div
-                    key={metric.id}
-                    className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-2"
+            <article className="rounded-[30px] bg-white p-6 shadow-lg">
+              <Link to="/time-tracking">
+                <header className="mb-4 flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-slate-900">
+                    Цагын бүртгэл
+                  </h2>
+                  <button
+                    type="button"
+                    className="flex h-6 w-6 items-center justify-center rounded-full bg-[#191E21] text-white"
+                    aria-label="More options"
                   >
-                    <dt className="font-medium">{metric.label}</dt>
-                    <dd className="text-slate-900">
-                      {loading ? "--" : metric.value}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
+                    <span>•••</span>
+                  </button>
+                </header>
+                <dl className="flex flex-col gap-3 text-sm text-slate-700">
+                  {timeMetrics.map((metric) => (
+                    <div
+                      key={metric.id}
+                      className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-2"
+                    >
+                      <dt className="font-medium">{metric.label}</dt>
+                      <dd className="text-slate-900">
+                        {loading ? "--" : metric.value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </Link>
             </article>
 
-            <article className="rounded-[30px] bg-white p-6 shadow-sm">
+            <article className="rounded-[30px] bg-white p-6 shadow-lg">
               <header className="mb-4 flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-slate-900">
                   Бичиг баримт
@@ -190,7 +193,7 @@ function OverviewScrollable({
             {taskSummary.map((item) => (
               <article
                 key={item.id}
-                className="flex flex-col items-center justify-between rounded-[30px] bg-white p-6 text-center shadow-sm"
+                className="flex flex-col items-center justify-between rounded-[30px] bg-white p-6 text-center shadow-lg"
               >
                 <header className="mb-2 flex w-full items-center justify-between text-sm text-slate-500">
                   <span>{item.label}</span>
@@ -210,7 +213,7 @@ function OverviewScrollable({
           </div>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-            <article className="rounded-[30px] bg-white p-6 shadow-sm">
+            <article className="rounded-[30px] bg-white p-6 shadow-lg">
               <header className="mb-4 text-xl font-semibold text-slate-900">
                 Ирцийн тойм
               </header>
@@ -269,10 +272,10 @@ function OverviewScrollable({
               )}
             </article>
 
-            <article className="rounded-[30px] bg-white p-6 shadow-sm">
+            <article className="rounded-[30px] bg-white p-6 shadow-lg">
               <header className="mb-4 flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-slate-900">
-                  Tasks by owner
+                  Даалгавар
                 </h2>
                 <button
                   type="button"
@@ -321,33 +324,44 @@ function OverviewScrollable({
   );
 }
 
-function StatCard({ label, value, delta, icon, loading }) {
+function StatCard({ label, value, delta, icon, loading, to }) {
   return (
-    <article className="rounded-[30px] bg-white p-6 shadow-lg mr-5">
-      <div className="flex items-start justify-between">
-        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100">
-          <img src={icon} alt="" className="h-6 w-6" />
-        </span>
-        <button
-          type="button"
-          className="flex h-6 w-6 items-center justify-center rounded-full  bg-[#191E21] text-white cursor-pointer"
-          aria-label="More options"
-        >
-          <span className="text-m">•••</span>
-        </button>
-      </div>
-      <p className="mt-4 text-lg font-medium text-slate-900">{label}</p>
-      <p className="mt-2 text-3xl font-bold text-slate-900">
-        {loading ? "--" : value}
-      </p>
-      <p className="mt-3 text-sm text-slate-500">
-        {loading ? "Өгөгдөл татаж байна..." : delta}
-      </p>
-    </article>
+    <Link to={to || "/"}>
+      <article className="rounded-[30px] bg-white p-6 shadow-lg mr-5 cursor-pointer hover:shadow-xl hover:translate-y-[-5px]">
+        <div className="flex items-start justify-between">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100">
+            <img src={icon} alt="" className="h-6 w-6" />
+          </span>
+          <button
+            type="button"
+            className="flex h-6 w-6 items-center justify-center rounded-full  bg-[#191E21] text-white cursor-pointer"
+            aria-label="More options"
+          >
+            <span className="text-m">•••</span>
+          </button>
+        </div>
+        <p className="mt-4 text-lg font-medium text-slate-900">{label}</p>
+        <p className="mt-2 text-3xl font-bold text-slate-900">
+          {loading ? "--" : value}
+        </p>
+        <p className="mt-3 text-sm text-slate-500">
+          {loading ? "Өгөгдөл татаж байна..." : delta}
+        </p>
+      </article>
+    </Link>
   );
 }
 
 function WorkStatusChart({ data, loading }) {
+  const navigate = useNavigate();
+  const handleNavigate = (status) => {
+    const params = new URLSearchParams({ group: "status" });
+    if (status) {
+      params.set("status", status);
+    }
+    navigate(`/tasks/all-tasks?${params.toString()}`);
+  };
+
   const segments = data
     .map((item, index) => {
       const start = data
@@ -378,30 +392,41 @@ function WorkStatusChart({ data, loading }) {
         ) : (
           <>
             <div
-              className="h-48 w-48 rounded-full border border-slate-100"
+              className="h-48 w-48 cursor-pointer rounded-full border border-slate-100"
               style={{
                 backgroundImage: `conic-gradient(${segments})`,
                 boxShadow: "0 12px 24px rgba(2, 179, 255, 0.12)",
               }}
               role="img"
               aria-label="Ажлын төлөвийн тойм"
+              tabIndex={0}
+              onClick={() => handleNavigate()}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  handleNavigate();
+                }
+              }}
             />
-            <ul className="grid w-full gap-2 text-sm text-slate-700 sm:grid-cols-3">
+            <ul className="flex justify-center w-full gap-2 text-sm text-slate-700 sm:grid-cols-3">
               {data.map((item) => (
-                <li
-                  key={item.label}
-                  className="flex items-center justify-between gap-2"
-                >
-                  <span className="flex items-center gap-2">
-                    <span
-                      className="h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span>{item.label}</span>
-                  </span>
-                  <span className="text-xs text-slate-500">
-                    {formatNumber(item.count)}
-                  </span>
+                <li key={item.label} className="flex">
+                  <button
+                    type="button"
+                    onClick={() => handleNavigate(item.id)}
+                    className="flex w-full items-center  gap-2 rounded-xl border border-transparent px-3 py-2 text-left transition hover:border-slate-200 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-200"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <span>{item.label}</span>
+                    </span>
+                    <span className="text-xs font-semibold text-slate-500">
+                      {formatNumber(item.count)}
+                    </span>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -413,35 +438,85 @@ function WorkStatusChart({ data, loading }) {
 }
 
 function AgeGenderDistributionBlock({ data, loading }) {
+  const [viewMode, setViewMode] = useState("count");
+  const totals = useMemo(() => {
+    if (!Array.isArray(data) || data.length === 0) {
+      return {
+        totalMale: 0,
+        totalFemale: 0,
+        maleShare: "0",
+        femaleShare: "0",
+        ratio: "--",
+      };
+    }
+    const totalMale = data.reduce((sum, item) => sum + (item.male ?? 0), 0);
+    const totalFemale = data.reduce((sum, item) => sum + (item.female ?? 0), 0);
+    const grandTotal = totalMale + totalFemale || 1;
+    const ratio = totalFemale > 0 ? (totalMale / totalFemale).toFixed(2) : "∞";
+    return {
+      totalMale,
+      totalFemale,
+      maleShare: ((totalMale / grandTotal) * 100).toFixed(1),
+      femaleShare: ((totalFemale / grandTotal) * 100).toFixed(1),
+      ratio,
+    };
+  }, [data]);
+
   return (
     <article className="rounded-[30px] bg-white p-6 shadow-lg">
-      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+      <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">
             Нас, хүйсийн бүтэц
           </h2>
         </div>
-        <div className="flex flex-wrap items-center gap-6 text-sm">
-          <span
-            className="flex items-center gap-2 font-semibold"
-            style={{ color: GENDER_COLORS.male }}
-          >
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-wrap items-center gap-6 text-sm">
             <span
-              className="h-2.5 w-6 rounded-full"
-              style={{ backgroundColor: GENDER_COLORS.male }}
-            />
-            Эрэгтэй
-          </span>
-          <span
-            className="flex items-center gap-2 font-semibold"
-            style={{ color: GENDER_COLORS.female }}
-          >
+              className="flex items-center gap-2 font-semibold"
+              style={{ color: GENDER_COLORS.male }}
+            >
+              <span
+                className="h-2.5 w-6 rounded-full"
+                style={{ backgroundColor: GENDER_COLORS.male }}
+              />
+              Эрэгтэй
+            </span>
             <span
-              className="h-2.5 w-6 rounded-full"
-              style={{ backgroundColor: GENDER_COLORS.female }}
-            />
-            Эмэгтэй
-          </span>
+              className="flex items-center gap-2 font-semibold"
+              style={{ color: GENDER_COLORS.female }}
+            >
+              <span
+                className="h-2.5 w-6 rounded-full"
+                style={{ backgroundColor: GENDER_COLORS.female }}
+              />
+              Эмэгтэй
+            </span>
+          </div>
+          <div className="inline-flex rounded-full bg-slate-100 p-1 text-xs font-medium text-slate-600">
+            <button
+              type="button"
+              onClick={() => setViewMode("count")}
+              className={`rounded-full px-3 py-1 transition ${
+                viewMode === "count"
+                  ? "bg-white text-slate-900 shadow"
+                  : "hover:text-slate-900"
+              }`}
+            >
+              Тоо
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("percent")}
+              className={`rounded-full px-3 py-1 transition ${
+                viewMode === "percent"
+                  ? "bg-white text-slate-900 shadow"
+                  : "hover:text-slate-900"
+              }`}
+            >
+              Хувь
+            </button>
+          </div>
         </div>
       </header>
       {loading ? (
@@ -451,10 +526,51 @@ function AgeGenderDistributionBlock({ data, loading }) {
           Нас, хүйсний мэдээлэл олдсонгүй.
         </span>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-5">
+          <div className="grid gap-3 text-sm sm:grid-cols-3">
+            <div className="rounded-2xl border border-slate-100 px-4 py-3 shadow-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                Нийт эрэгтэй
+              </p>
+              <p className="mt-2 flex items-baseline gap-2 text-xl font-bold text-slate-900">
+                {formatNumber(totals.totalMale)}
+                <span className="text-xs font-medium text-slate-500">
+                  {totals.maleShare}%
+                </span>
+              </p>
+            </div>
+            <div className="rounded-2xl border border-slate-100 px-4 py-3 shadow-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                Нийт эмэгтэй
+              </p>
+              <p className="mt-2 flex items-baseline gap-2 text-xl font-bold text-slate-900">
+                {formatNumber(totals.totalFemale)}
+                <span className="text-xs font-medium text-slate-500">
+                  {totals.femaleShare}%
+                </span>
+              </p>
+            </div>
+            <div className="rounded-2xl border border-slate-100 px-4 py-3 shadow-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                Харьцаа
+              </p>
+              <p className="mt-2 text-xl font-bold text-slate-900">
+                {totals.ratio}
+              </p>
+              <p className="text-xs font-medium text-slate-500">
+                Эрэгтэй : Эмэгтэй
+              </p>
+            </div>
+          </div>
           {data.map((item) => {
             const maleWidth = item.malePercent;
             const femaleWidth = item.femalePercent;
+            const maleDisplay =
+              viewMode === "count" ? formatNumber(item.male) : item.malePercent;
+            const femaleDisplay =
+              viewMode === "count"
+                ? formatNumber(item.female)
+                : item.femalePercent;
 
             return (
               <div
@@ -471,7 +587,9 @@ function AgeGenderDistributionBlock({ data, loading }) {
                         backgroundColor: GENDER_COLORS.male,
                       }}
                     >
-                      {formatNumber(item.male)}
+                      {viewMode === "count"
+                        ? formatNumber(item.male)
+                        : item.malePercent}
                     </span>
                   )}
                   {item.female > 0 && (
@@ -482,7 +600,9 @@ function AgeGenderDistributionBlock({ data, loading }) {
                         backgroundColor: GENDER_COLORS.female,
                       }}
                     >
-                      {formatNumber(item.female)}
+                      {viewMode === "count"
+                        ? formatNumber(item.female)
+                        : item.femalePercent}
                     </span>
                   )}
                 </div>
@@ -495,7 +615,7 @@ function AgeGenderDistributionBlock({ data, loading }) {
                       className="h-2 w-2 rounded-full"
                       style={{ backgroundColor: GENDER_COLORS.male }}
                     />
-                    {formatNumber(item.male)}
+                    {maleDisplay}
                   </span>
                   <span
                     className="flex items-center gap-1"
@@ -505,7 +625,7 @@ function AgeGenderDistributionBlock({ data, loading }) {
                       className="h-2 w-2 rounded-full"
                       style={{ backgroundColor: GENDER_COLORS.female }}
                     />
-                    {formatNumber(item.female)}
+                    {femaleDisplay}
                   </span>
                 </div>
               </div>
@@ -517,7 +637,7 @@ function AgeGenderDistributionBlock({ data, loading }) {
   );
 }
 
-function HiringCard({ name, role, date, avatar }) {
+function HiringCard({ id, name, role, date, avatar, onSelect }) {
   let initials = "?";
   if (name) {
     initials = name
@@ -528,18 +648,35 @@ function HiringCard({ name, role, date, avatar }) {
       .join("")
       .toUpperCase();
   }
+  const handleSelect = () => {
+    if (!id || typeof onSelect !== "function") {
+      return;
+    }
+    onSelect(id);
+  };
 
   return (
-    <li className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 ">
+    <li
+      className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 cursor-pointer hover:shadow-md hover:translate-y-[-5px]"
+      onClick={handleSelect}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          handleSelect();
+        }
+      }}
+    >
       <div className="flex items-center gap-4">
         {avatar ? (
           <img
             src={avatar}
             alt={name}
-            className="h-12 w-12 rounded-full object-cover shadow"
+            className="h-12 w-12 shrink-0 rounded-full object-cover shadow"
           />
         ) : (
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-600 shadow">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-200 text-base font-semibold text-slate-600 shadow">
             {initials}
           </span>
         )}
@@ -577,6 +714,8 @@ function Dashboard() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -634,6 +773,19 @@ function Dashboard() {
     };
   }, []);
 
+  const openProfileModal = (employeeId) => {
+    if (!employeeId) {
+      return;
+    }
+    setSelectedEmployeeId(employeeId);
+    setIsProfileOpen(true);
+  };
+
+  const closeProfileModal = () => {
+    setIsProfileOpen(false);
+    setSelectedEmployeeId(null);
+  };
+
   const stats = useMemo(
     () => [
       {
@@ -644,10 +796,11 @@ function Dashboard() {
           ? `Байнгын: ${formatNumber(summary.employees?.permanent ?? 0)}`
           : "",
         icon: ICON_EMPLOYEES,
+        link: "/employees",
       },
       {
         id: "total-tasks",
-        label: "Нийт даалгавар",
+        label: "Ажилын Төлөвлөгөө",
         value: summary ? formatNumber(summary.tasks?.total ?? 0) : "--",
         delta: summary
           ? `Дууссан: ${formatNumber(
@@ -655,6 +808,7 @@ function Dashboard() {
             )} • Үргэлжилж буй: ${formatNumber(summary.tasks?.inProgress ?? 0)}`
           : "",
         icon: ICON_TASKS,
+        link: "/tasks/all-tasks",
       },
     ],
     [summary]
@@ -673,18 +827,21 @@ function Dashboard() {
     }
     return [
       {
+        id: "done",
         label: "Дууссан",
         color: WORK_STATUS_COLORS.done,
         value: (done / total) * 100,
         count: done,
       },
       {
+        id: "inProgress",
         label: "Ажиллаж байна",
         color: WORK_STATUS_COLORS.inProgress,
         value: (inProgress / total) * 100,
         count: inProgress,
       },
       {
+        id: "stuck",
         label: "Гацсан",
         color: WORK_STATUS_COLORS.stuck,
         value: (stuck / total) * 100,
@@ -849,22 +1006,22 @@ function Dashboard() {
     () => [
       {
         id: "all",
-        label: "All Tasks",
+        label: "Бүх ажилууд",
         value: formatNumber(summary?.tasks?.total ?? 0),
       },
       {
         id: "in-progress",
-        label: "In Progress",
+        label: "Ажиллаж буй",
         value: formatNumber(summary?.tasks?.inProgress ?? 0),
       },
       {
         id: "stuck",
-        label: "Stuck",
+        label: "Саатсан",
         value: formatNumber(summary?.tasks?.stuck ?? 0),
       },
       {
         id: "done",
-        label: "Done",
+        label: "Дууссан",
         value: formatNumber(summary?.tasks?.done ?? 0),
       },
     ],
@@ -930,15 +1087,7 @@ function Dashboard() {
           {error}
         </div>
       )}
-      <OverviewScrollable
-        loading={loading && !summary}
-        employeeTypes={employeeTypeDistribution}
-        timeMetrics={timeMetrics}
-        documentMetrics={documentMetrics}
-        taskSummary={taskSummaryCards}
-        attendanceBreakdown={attendanceBreakdown}
-        tasksByOwner={tasksByOwner}
-      />
+
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
         <div className="grid gap-6">
           <div className="grid gap-6 lg:grid-cols-[minmax(240px,320px)_minmax(0,1fr)]">
@@ -951,6 +1100,7 @@ function Dashboard() {
                   delta={item.delta}
                   icon={item.icon}
                   loading={loading && !summary}
+                  to={item.link}
                 />
               ))}
             </div>
@@ -968,7 +1118,7 @@ function Dashboard() {
           <header className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-slate-900">
-                Саяхан элссэн ажилчид
+                Саяхан нэмэгдсэн ажилтан
               </h2>
             </div>
             <button
@@ -988,14 +1138,32 @@ function Dashboard() {
               Саяхан нэмэгдсэн ажилчид алга.
             </span>
           ) : (
-            <ul className="flex flex-col gap-3">
+            <ul className="flex flex-col gap-3 ">
               {pipeline.map((candidate) => (
-                <HiringCard key={candidate.id} {...candidate} />
+                <HiringCard
+                  key={candidate.id}
+                  {...candidate}
+                  onSelect={openProfileModal}
+                />
               ))}
             </ul>
           )}
         </aside>
       </div>
+      <OverviewScrollable
+        loading={loading && !summary}
+        employeeTypes={employeeTypeDistribution}
+        timeMetrics={timeMetrics}
+        documentMetrics={documentMetrics}
+        taskSummary={taskSummaryCards}
+        attendanceBreakdown={attendanceBreakdown}
+        tasksByOwner={tasksByOwner}
+      />
+      <ProfileModal
+        isOpen={isProfileOpen}
+        employeeId={selectedEmployeeId}
+        onClose={closeProfileModal}
+      />
     </section>
   );
 }

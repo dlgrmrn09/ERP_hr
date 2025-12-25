@@ -4,6 +4,7 @@ import { authorize } from "../middleware/authorize.js";
 import { documentUpload } from "../middleware/upload.js";
 import {
   listDocuments,
+  listDocumentCategories,
   getDocument,
   createDocument,
   updateDocument,
@@ -15,6 +16,11 @@ const router = express.Router();
 router.use(protect);
 
 router.get("/", authorize("documents", "read"), listDocuments);
+router.get(
+  "/categories",
+  authorize("documents", "read"),
+  listDocumentCategories
+);
 router.post(
   "/",
   authorize("documents", "create"),

@@ -482,41 +482,7 @@ function TimeTracking() {
     };
   }, [records]);
 
-  const distribution = useMemo(() => {
-    const { onTimeCount, lateCount, absentCount } = attendanceTotals;
-    const overall = onTimeCount + lateCount + absentCount;
-    if (overall === 0) {
-      return STATUS_ORDER.map((status) => ({
-        status,
-        label: STATUS_LABELS[status] ?? status,
-        count: 0,
-        rawPercent: 0,
-        percentLabel: "0%",
-        color: STATUS_COLORS[status],
-      }));
-    }
-    return STATUS_ORDER.map((status) => {
-      const count =
-        status === "On Time"
-          ? attendanceTotals.onTimeCount
-          : status === "Late"
-          ? attendanceTotals.lateCount
-          : attendanceTotals.absentCount;
-      const rawPercent = (count / overall) * 100;
-      const percentLabel =
-        rawPercent > 0 && rawPercent < 0.01
-          ? "<0.01%"
-          : `${rawPercent.toFixed(rawPercent >= 1 ? 1 : 2)}%`;
-      return {
-        status,
-        label: STATUS_LABELS[status] ?? status,
-        count,
-        rawPercent,
-        percentLabel,
-        color: STATUS_COLORS[status],
-      };
-    });
-  }, [attendanceTotals]);
+  const todayKey = useMemo(() => buildDateKey(new Date()), []);
 
   const monthDate = useMemo(() => {
     const [year, month] = selectedMonth.split("-");
@@ -577,6 +543,43 @@ function TimeTracking() {
   }, [calendarDays, selectedCalendarDate]);
 
   const dailyChart = useMemo(() => {
+    const multipleMonths = activeMonthKeys.length > 1;
+
+    if (multipleMonths) {
+      const monthCounts = new Map();
+      activeMonthKeys.forEach((monthKey) => {
+        monthCounts.set(monthKey, {
+          "On Time": 0,
+          Late: 0,
+          Absent: 0,
+        });
+      });
+
+      records.forEach((record) => {
+        if (!record.attendance_date) {
+          return;
+        }
+        const recordKey = record.attendance_date.slice(0, 7);
+        if (!monthCounts.has(recordKey)) {
+          return;
+        }
+        const status = normalizeStatus(record.status);
+        const bucket = monthCounts.get(recordKey);
+        bucket[status] = (bucket[status] ?? 0) + 1;
+      });
+
+      const labels = Array.from(monthCounts.keys());
+      const datasets = STATUS_ORDER.map((status) => ({
+        label: STATUS_LABELS[status] ?? status,
+        data: labels.map((label) => monthCounts.get(label)?.[status] ?? 0),
+        backgroundColor: CHART_STATUS_COLORS[status],
+        borderRadius: 6,
+        barThickness: 22,
+      }));
+
+      return { labels, datasets };
+    }
+
     const days = Array.from({ length: daysInMonth }, (_, idx) => idx + 1);
     const datasetsMap = {
       "On Time": Array(daysInMonth).fill(0),
@@ -612,7 +615,7 @@ function TimeTracking() {
       labels: days.map((day) => day.toString().padStart(2, "0")),
       datasets,
     };
-  }, [records, selectedMonth, daysInMonth]);
+  }, [records, selectedMonth, daysInMonth, activeMonthKeys]);
 
   const chartOptions = useMemo(
     () => ({
@@ -773,14 +776,56 @@ function TimeTracking() {
     }).format(new Date(latestRecord.attendance_date));
   }, [records, monthDate]);
 
-  const monthLabel = useMemo(
-    () =>
-      new Intl.DateTimeFormat("mn-MN", {
-        month: "long",
-      }).format(monthDate),
-    [monthDate]
-  );
-  const yearLabel = monthDate.getFullYear();
+  const distributionSource = useMemo(() => {
+    const todaySummary = attendanceByDate.get(todayKey) ?? null;
+    const label = todaySummary ? "Өнөөдөр" : "Өнөөдрийн мэдээлэл алга";
+    const counts = todaySummary?.counts ?? EMPTY_STATUS_COUNTS;
+    return { label, counts };
+  }, [attendanceByDate, todayKey]);
+
+  const distribution = useMemo(() => {
+    const { counts } = distributionSource;
+    const overall =
+      (counts?.["On Time"] ?? 0) + (counts?.Late ?? 0) + (counts?.Absent ?? 0);
+    if (overall === 0) {
+      return STATUS_ORDER.map((status) => ({
+        status,
+        label: STATUS_LABELS[status] ?? status,
+        count: 0,
+        rawPercent: 0,
+        percentLabel: "0%",
+        color: STATUS_COLORS[status],
+      }));
+    }
+    return STATUS_ORDER.map((status) => {
+      const count = counts?.[status] ?? 0;
+      const rawPercent = (count / overall) * 100;
+      const percentLabel =
+        rawPercent > 0 && rawPercent < 0.01
+          ? "<0.01%"
+          : `${rawPercent.toFixed(rawPercent >= 1 ? 1 : 2)}%`;
+      return {
+        status,
+        label: STATUS_LABELS[status] ?? status,
+        count,
+        rawPercent,
+        percentLabel,
+        color: STATUS_COLORS[status],
+      };
+    });
+  }, [distributionSource]);
+
+  const distributionLabel = distributionSource.label;
+
+  const monthLabel = useMemo(() => {
+    if (activeMonthKeys.length > 1) {
+      return "Сонгосон сарууд";
+    }
+    return new Intl.DateTimeFormat("mn-MN", {
+      month: "long",
+    }).format(monthDate);
+  }, [monthDate, activeMonthKeys]);
+  const yearLabel = activeMonthKeys.length > 1 ? "" : monthDate.getFullYear();
   const hasSidebar = activeView !== "calendar";
 
   return (
@@ -793,19 +838,29 @@ function TimeTracking() {
 
       <div className="rounded-[40px]  p-6">
         <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <WhiteButton
-              label="Хүснэгт"
-              onClick={() => setActiveView("table")}
-              isSelected={activeView === "table"}
-            />
-            <WhiteButton
-              label="Календар"
-              onClick={() => setActiveView("calendar")}
-              isSelected={activeView === "calendar"}
-            />
+          <div className="inline-flex rounded-full bg-white p-1 shadow-sm">
+            {[
+              { id: "table", label: "Хүснэгт" },
+              { id: "calendar", label: "Календар" },
+            ].map((view) => {
+              const isActive = activeView === view.id;
+              return (
+                <button
+                  key={view.id}
+                  type="button"
+                  onClick={() => setActiveView(view.id)}
+                  className={`rounded-full px-5 py-2 text-sm font-semibold transition ${
+                    isActive
+                      ? "bg-slate-900 text-white shadow"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {view.label}
+                </button>
+              );
+            })}
           </div>
-          <h1 className="text-xl font-semibold text-slate-700">Цаг бүртгэл</h1>
+          <h1 className="text-2xl font-semibold text-black">Цаг бүртгэл</h1>
         </header>
 
         <div
@@ -1506,7 +1561,7 @@ function TimeTracking() {
 
               <article className="rounded-[30px] bg-white p-6 shadow-lg">
                 <header className="mb-4 text-xl font-semibold text-slate-900">
-                  {highlightedDateLabel}
+                  {distributionLabel}
                 </header>
                 <div className="mb-4 h-16 overflow-hidden rounded-[20px] border border-slate-200">
                   <div className="flex h-full w-full">

@@ -16,6 +16,9 @@ import Header from "./components/Header.jsx";
 import AllTasks from "./pages/AllTasks.jsx";
 import Workspace from "./pages/Workspace.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
+import Boards from "./pages/Boards.jsx";
+import NotFound from "./pages/NotFound.jsx";
+import Board from "./pages/Board.jsx";
 
 function AppLayout() {
   return (
@@ -71,8 +74,10 @@ function App() {
           <Route path="/tasks" element={<TaskManagement />} />
           <Route path="/tasks/all-tasks" element={<AllTasks />} />
           <Route path="/tasks/workspace" element={<Workspace />} />
+          <Route path="/tasks/boards" element={<Boards />} />\
+          <Route path="/tasks/boards/:boardId" element={<Board />} />
         </Route>
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
   );

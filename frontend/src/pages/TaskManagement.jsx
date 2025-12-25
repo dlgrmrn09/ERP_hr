@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import {
   Chart as ChartJS,
   ArcElement,
@@ -53,6 +54,34 @@ const BOARD_COLORS = [
   "#A855F7",
   "#6366F1",
 ];
+
+const normalizeStatusName = (value) => {
+  if (!value) {
+    return "";
+  }
+  const normalized = value.trim().toLowerCase();
+  if (
+    [
+      "working on it",
+      "working",
+      "in progress",
+      "progress",
+      "pending",
+      "open",
+    ].includes(normalized)
+  ) {
+    return "Working On It";
+  }
+  if (["done", "completed", "complete", "finished"].includes(normalized)) {
+    return "Done";
+  }
+  if (
+    ["stuck", "blocked", "on hold", "paused", "stalled"].includes(normalized)
+  ) {
+    return "Stuck";
+  }
+  return value;
+};
 
 const REMAINDER_DATASET_LABEL = "Үлдэгдэл";
 
@@ -178,6 +207,7 @@ const formatFeedMessage = (item) => {
 };
 
 function TaskManagement() {
+  const navigate = useNavigate();
   const [overview, setOverview] = useState(INITIAL_OVERVIEW);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -186,6 +216,19 @@ function TaskManagement() {
     feed: true,
     workspace: true,
   });
+
+  const handleWorkspaceCardClick = (workspaceId) => {
+    const id = workspaceId ? String(workspaceId) : null;
+    if (typeof window !== "undefined" && id) {
+      window.sessionStorage.setItem("selectedWorkspaceId", id);
+      window.dispatchEvent(
+        new CustomEvent("workspace:selected", {
+          detail: id,
+        })
+      );
+    }
+    navigate("/tasks/workspace");
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -241,10 +284,11 @@ function TaskManagement() {
   const statusLegend = useMemo(
     () =>
       overview.statusBreakdown.map((item) => {
-        const meta = STATUS_META[item.name] ?? FALLBACK_STATUS_META;
+        const normalizedName = normalizeStatusName(item.name);
+        const meta = STATUS_META[normalizedName] ?? FALLBACK_STATUS_META;
         return {
           name: item.name,
-          label: meta.label ?? item.name,
+          label: meta.label ?? item.name ?? "Тодорхойгүй",
           colorClass: meta.colorClass ?? FALLBACK_STATUS_META.colorClass,
           chartColor: meta.chartColor ?? FALLBACK_STATUS_META.chartColor,
           count: item.count ?? 0,
@@ -477,7 +521,7 @@ function TaskManagement() {
       ) : null}
       <div className="flex w-full  flex-col gap-6 lg:flex-row">
         <main className="flex-1 space-y-6 bg-white p-6 rounded-[30px] shadow-lg">
-          <section className="  bg-white/80 p-6 ">
+          <section className="  bg-white/80 p-6 shadow-sm rounded-2xl ">
             <header className="flex items-center justify-between">
               <button
                 type="button"
@@ -503,30 +547,33 @@ function TaskManagement() {
               ) : overview.boards.length ? (
                 <div className="mt-6 grid  gap-6 grid-cols-[repeat(auto-fill,_minmax(280px,_310px))]">
                   {overview.boards.map((board) => (
-                    <article
+                    <Link
                       key={board.id}
-                      className="rounded-2xl border border-slate-200 bg-white transition hover:shadow-lg hover:-translate-y-1 cursor-pointer"
+                      to={`/tasks/boards/${board.id}`}
+                      state={{ boardName: board.name || "Нэргүй самбар" }}
                     >
-                      <img
-                        src="https://cdn.monday.com/images/quick_search_recent_board2.svg"
-                        alt=""
-                        aria-hidden="true"
-                        className="h-40 w-full rounded-t-2xl object-cover"
-                      />
-                      <div className="flex items-start gap-3 p-4">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-600 text-sm font-semibold text-white">
-                          {board.name?.slice(0, 1)?.toUpperCase() ?? "B"}
+                      <article className="rounded-2xl border border-slate-200 bg-white transition hover:shadow-lg hover:-translate-y-1 cursor-pointer">
+                        <img
+                          src="https://cdn.monday.com/images/quick_search_recent_board2.svg"
+                          alt=""
+                          aria-hidden="true"
+                          className="h-40 w-full rounded-t-2xl object-cover"
+                        />
+                        <div className="flex items-start gap-3 p-4">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-600 text-sm font-semibold text-white">
+                            {board.name?.slice(0, 1)?.toUpperCase() ?? "B"}
+                          </div>
+                          <div>
+                            <h3 className="text-base font-semibold text-slate-900">
+                              {board.name}
+                            </h3>
+                            <p className="mt-1 text-xs text-slate-500">
+                              Workspace · {board.workspaceName ?? "Тодорхойгүй"}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="text-base font-semibold text-slate-900">
-                            {board.name}
-                          </h3>
-                          <p className="mt-1 text-xs text-slate-500">
-                            Workspace · {board.workspaceName ?? "Тодорхойгүй"}
-                          </p>
-                        </div>
-                      </div>
-                    </article>
+                      </article>
+                    </Link>
                   ))}
                 </div>
               ) : (
@@ -537,7 +584,7 @@ function TaskManagement() {
             ) : null}
           </section>
 
-          <section className=" bg-white/80 p-6 ">
+          <section className=" bg-white/80 p-6 shadow-sm rounded-2xl ">
             <header className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-900">
               <button
                 type="button"
@@ -562,7 +609,7 @@ function TaskManagement() {
               loading ? (
                 <p className="text-sm text-slate-500">Ачаалж байна...</p>
               ) : feedItems.length ? (
-                <ul className="space-y-4 border border-slate-200 p-4 rounded-2xl overflow-scroll h-50 bg-white">
+                <ul className="space-y-4 border border-slate-200 p-4 rounded-2xl overflow-y-auto h-50 bg-white">
                   {feedItems.map((item) => (
                     <li
                       key={item.id}
@@ -596,7 +643,7 @@ function TaskManagement() {
             ) : null}
           </section>
 
-          <section className=" bg-white/80 p-6 ">
+          <section className=" bg-white/80 p-6 shadow-sm rounded-2xl ">
             <div className="flex items-center mb-4 gap-2">
               <button
                 type="button"
@@ -625,6 +672,7 @@ function TaskManagement() {
                     <div
                       key={workspace.id}
                       className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 hover:shadow-lg hover:-translate-y-1 cursor-pointer"
+                      onClick={() => handleWorkspaceCardClick(workspace.id)}
                     >
                       <div className="flex items-center gap-3 ">
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600 text-base font-semibold text-white">
@@ -654,7 +702,7 @@ function TaskManagement() {
         <aside className="flex w-full flex-col gap-6 lg:w-80">
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg">
             <h3 className="text-base font-semibold text-slate-900">
-              Ажилийн үйл явц
+              Ажлийн үйл явц
             </h3>
             <div className="mt-6 flex items-center justify-center">
               <div className="relative h-32 w-32">
@@ -690,7 +738,7 @@ function TaskManagement() {
 
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg">
             <h3 className="text-base font-semibold text-slate-900">
-              Task By Board
+              Самбарын Тархалт
             </h3>
             <div
               className="mt-6 overflow-hidden rounded-[10px]  bg-white/80 p-2"
