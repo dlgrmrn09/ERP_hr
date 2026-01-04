@@ -1,8 +1,6 @@
 .env
-uploads
-node_modules
+dist/
+API_SCHEMA.md
 package-lock.json
-.DS_Store
-dist
-logs
-coverage
+node_modules
+tsconfig.json

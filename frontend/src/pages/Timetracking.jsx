@@ -145,6 +145,19 @@ function TimeTracking() {
     [currentMonthStart]
   );
 
+  const percentCalculator = useCallback((part, total) => {
+    const partNum = Number(part);
+    const totalNum = Number(total);
+    if (
+      !Number.isFinite(partNum) ||
+      !Number.isFinite(totalNum) ||
+      totalNum === 0
+    ) {
+      return "0%";
+    }
+    return `${((partNum / totalNum) * 100).toFixed(1)}%`;
+  }, []);
+
   const selectedYearNumber = useMemo(() => {
     const [yearPart] = selectedMonth.split("-");
     const parsed = Number(yearPart);
@@ -297,6 +310,8 @@ function TimeTracking() {
         );
 
         setRecords(mergedRecords);
+        console.log(mergedRecords);
+        console.log(summaryResponse.data);
         setSummary(summaryResponse.data ?? null);
         setError(null);
       } catch (err) {
@@ -783,37 +798,46 @@ function TimeTracking() {
     return { label, counts };
   }, [attendanceByDate, todayKey]);
 
-  const distribution = useMemo(() => {
-    const { counts } = distributionSource;
-    const overall =
-      (counts?.["On Time"] ?? 0) + (counts?.Late ?? 0) + (counts?.Absent ?? 0);
-    if (overall === 0) {
-      return STATUS_ORDER.map((status) => ({
-        status,
-        label: STATUS_LABELS[status] ?? status,
-        count: 0,
-        rawPercent: 0,
-        percentLabel: "0%",
-        color: STATUS_COLORS[status],
-      }));
+  const safeDaily = useMemo(() => {
+    const daily = summary?.attendance?.daily;
+    if (Array.isArray(daily) && daily.length > 0 && daily[0]) {
+      return daily[0];
     }
-    return STATUS_ORDER.map((status) => {
-      const count = counts?.[status] ?? 0;
-      const rawPercent = (count / overall) * 100;
-      const percentLabel =
-        rawPercent > 0 && rawPercent < 0.01
-          ? "<0.01%"
-          : `${rawPercent.toFixed(rawPercent >= 1 ? 1 : 2)}%`;
-      return {
-        status,
-        label: STATUS_LABELS[status] ?? status,
-        count,
-        rawPercent,
-        percentLabel,
-        color: STATUS_COLORS[status],
-      };
-    });
-  }, [distributionSource]);
+    return {
+      on_time: 0,
+      late: 0,
+      absent: 0,
+      overtime_minutes: 0,
+    };
+  }, [summary]);
+
+  const totalEmployees = Number.isFinite(summary?.employees?.total)
+    ? summary?.employees?.total
+    : attendanceTotals.totalEmployees || 0;
+
+  const distribution = [
+    {
+      status: "On Time",
+      label: "Ирсэн",
+      count: safeDaily.on_time,
+      percent: percentCalculator(safeDaily.on_time, totalEmployees),
+      color: STATUS_COLORS["On Time"],
+    },
+    {
+      status: "Late",
+      label: "Хоцорсон",
+      count: safeDaily.late,
+      percent: percentCalculator(safeDaily.late, totalEmployees),
+      color: STATUS_COLORS["Late"],
+    },
+    {
+      status: "Absent",
+      label: "Тасалсан",
+      count: safeDaily.absent,
+      percent: percentCalculator(safeDaily.absent, totalEmployees),
+      color: STATUS_COLORS["Absent"],
+    },
+  ];
 
   const distributionLabel = distributionSource.label;
 
@@ -1500,7 +1524,7 @@ function TimeTracking() {
             <aside className="flex flex-col gap-6">
               <article className="rounded-[30px] bg-white p-6 shadow-lg">
                 <header className="mb-4 text-xl font-semibold text-slate-900">
-                  Цагын бүртгэл
+                  Цаг бүртгэл
                 </header>
                 <ul className="flex flex-col gap-3 text-sm text-slate-700">
                   <li className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-2">
@@ -1521,9 +1545,7 @@ function TimeTracking() {
                       <span>✅</span>Цагтаа ирсэн
                     </span>
                     <span className="font-semibold text-slate-900">
-                      {loading
-                        ? "--"
-                        : formatNumber(attendanceTotals.onTimeCount)}
+                      {loading ? "--" : formatNumber(safeDaily.on_time)}
                     </span>
                   </li>
                   <li className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-2">
@@ -1531,9 +1553,7 @@ function TimeTracking() {
                       <span>⏰</span>Хоцорсон
                     </span>
                     <span className="font-semibold text-slate-900">
-                      {loading
-                        ? "--"
-                        : formatNumber(attendanceTotals.lateCount)}
+                      {loading ? "--" : formatNumber(safeDaily.late)}
                     </span>
                   </li>
                   <li className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-2">
@@ -1541,9 +1561,7 @@ function TimeTracking() {
                       <span>❌</span>Тасалсан
                     </span>
                     <span className="font-semibold text-slate-900">
-                      {loading
-                        ? "--"
-                        : formatNumber(attendanceTotals.absentCount)}
+                      {loading ? "--" : formatNumber(safeDaily.absent)}
                     </span>
                   </li>
                   <li className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-2">
@@ -1553,7 +1571,7 @@ function TimeTracking() {
                     <span className="font-semibold text-slate-900">
                       {loading
                         ? "--"
-                        : formatOvertime(attendanceTotals.overtimeMinutes)}
+                        : formatOvertime(safeDaily.overtime_minutes)}
                     </span>
                   </li>
                 </ul>
@@ -1568,13 +1586,13 @@ function TimeTracking() {
                     {distribution.map((item) => (
                       <div
                         key={item.status}
-                        className="flex items-center justify-center text-xs font-semibold text-white"
+                        className="flex items-center justify-center text-xs  font-semibold text-white"
                         style={{
-                          width: `${item.rawPercent}%`,
+                          width: `${item.percent}`,
                           backgroundColor: item.color,
                         }}
                       >
-                        {loading ? "--" : item.percentLabel}
+                        {" "}
                       </div>
                     ))}
                   </div>
@@ -1595,9 +1613,7 @@ function TimeTracking() {
                       <span className="text-slate-500">
                         {loading
                           ? "--"
-                          : `${item.percentLabel} (${formatNumber(
-                              item.count
-                            )})`}
+                          : `${item.percent} (${formatNumber(item.count)})`}
                       </span>
                     </li>
                   ))}

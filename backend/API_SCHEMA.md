@@ -18,6 +18,50 @@
 | GET    | /auth/me                | Return authenticated profile with permissions | Authenticated   |
 | POST   | /auth/logout            | Clear session token                           | Authenticated   |
 
+### Git Bash quick-start commands
+
+Run the following `curl` helpers inside Git Bash (Windows) or any POSIX shell to seed core accounts. Adjust the sample data as needed.
+
+```bash
+# point to your backend (defaults to http://localhost:5000)
+API_BASE=${API_BASE:-http://localhost:5000/api}
+
+# 1) One-time administrator bootstrap (creates the very first superuser)
+curl -X POST "$API_BASE/auth/bootstrap" \
+	-H "Content-Type: application/json" \
+	-c cookies.txt \
+	-d '{
+				"firstName": "Админ",
+				"lastName": "Супер",
+				"email": "admin@example.mn",
+				"password": "ChangeMe123!"
+			}'
+
+# 2) Register the Director (requires logged-in admin cookie)
+curl -X POST "$API_BASE/auth/register/director" \
+	-H "Content-Type: application/json" \
+	-b cookies.txt -c cookies.txt \
+	-d '{
+				"firstName": "Захирал",
+				"lastName": "Бат",
+				"email": "director@example.mn",
+				"password": "ChangeMe123!"
+			}'
+
+# 3) Register an HR specialist (also requires admin session cookie)
+curl -X POST "$API_BASE/auth/register/hr" \
+	-H "Content-Type: application/json" \
+	-b cookies.txt -c cookies.txt \
+	-d '{
+				"firstName": "Хүний",
+				"lastName": "Нөөц",
+				"email": "hr@example.mn",
+				"password": "ChangeMe123!"
+			}'
+```
+
+> Tip: `cookies.txt` captures the session token issued by `/auth/bootstrap` so the subsequent registration calls reuse the authenticated admin session.
+
 ## Dashboard
 
 | Method | Path               | Purpose                                                        | Required permission |

@@ -248,11 +248,11 @@ function Documents() {
 
     const fetchCategories = async () => {
       try {
-        const response = await apiClient.get("/documents/categories");
+        const response = await apiClient.get("/documents");
         if (!isActive) {
           return;
         }
-
+        console.log("Categories response:", response);
         const categoryList = [...(response.data?.categories ?? [])].sort(
           (left, right) => compareStrings(left, right)
         );

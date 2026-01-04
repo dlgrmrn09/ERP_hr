@@ -456,8 +456,8 @@ function AgeGenderDistributionBlock({ data, loading }) {
     return {
       totalMale,
       totalFemale,
-      maleShare: ((totalMale / grandTotal) * 100).toFixed(1),
-      femaleShare: ((totalFemale / grandTotal) * 100).toFixed(1),
+      maleShare: ((totalMale / grandTotal) * 100).toFixed(0),
+      femaleShare: ((totalFemale / grandTotal) * 100).toFixed(0),
       ratio,
     };
   }, [data]);
@@ -493,13 +493,13 @@ function AgeGenderDistributionBlock({ data, loading }) {
               Эмэгтэй
             </span>
           </div>
-          <div className="inline-flex rounded-full bg-slate-100 p-1 text-xs font-medium text-slate-600">
+          <div className="inline-flex rounded-full bg-white p-1 text-xs font-medium text-slate-600 shadow-sm">
             <button
               type="button"
               onClick={() => setViewMode("count")}
               className={`rounded-full px-3 py-1 transition ${
                 viewMode === "count"
-                  ? "bg-white text-slate-900 shadow"
+                  ? "bg-[#191e21] text-white shadow-sm"
                   : "hover:text-slate-900"
               }`}
             >
@@ -510,7 +510,7 @@ function AgeGenderDistributionBlock({ data, loading }) {
               onClick={() => setViewMode("percent")}
               className={`rounded-full px-3 py-1 transition ${
                 viewMode === "percent"
-                  ? "bg-white text-slate-900 shadow"
+                  ? "bg-[#191e21] text-white shadow-sm"
                   : "hover:text-slate-900"
               }`}
             >
@@ -528,7 +528,7 @@ function AgeGenderDistributionBlock({ data, loading }) {
       ) : (
         <div className="flex flex-col gap-5">
           <div className="grid gap-3 text-sm sm:grid-cols-3">
-            <div className="rounded-2xl border border-slate-100 px-4 py-3 shadow-sm">
+            <div className="rounded-2xl  px-4 py-3 shadow-sm">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                 Нийт эрэгтэй
               </p>
@@ -539,7 +539,7 @@ function AgeGenderDistributionBlock({ data, loading }) {
                 </span>
               </p>
             </div>
-            <div className="rounded-2xl border border-slate-100 px-4 py-3 shadow-sm">
+            <div className="rounded-2xl  px-4 py-3 shadow-sm">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                 Нийт эмэгтэй
               </p>
@@ -550,7 +550,7 @@ function AgeGenderDistributionBlock({ data, loading }) {
                 </span>
               </p>
             </div>
-            <div className="rounded-2xl border border-slate-100 px-4 py-3 shadow-sm">
+            <div className="rounded-2xl  px-4 py-3 shadow-sm">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                 Харьцаа
               </p>
@@ -742,7 +742,7 @@ function Dashboard() {
         if (!isMounted) {
           return;
         }
-
+        console.log(summaryResponse.data);
         setSummary(summaryResponse.data ?? null);
         setEmployees(employeesResponse.data?.data ?? []);
         setError(null);
@@ -793,7 +793,7 @@ function Dashboard() {
         label: "Нийт ажилчид",
         value: summary ? formatNumber(summary.employees?.total ?? 0) : "--",
         delta: summary
-          ? `Байнгын: ${formatNumber(summary.employees?.permanent ?? 0)}`
+          ? `үндсэн: ${formatNumber(summary.employees?.permanent ?? 0)} `
           : "",
         icon: ICON_EMPLOYEES,
         link: "/employees",
@@ -877,8 +877,8 @@ function Dashboard() {
           label,
           male,
           female,
-          malePercent: `${(male / safeTotal) * 100}%`,
-          femalePercent: `${(female / safeTotal) * 100}%`,
+          malePercent: `${((male / safeTotal) * 100).toFixed(0)}%`,
+          femalePercent: `${((female / safeTotal) * 100).toFixed(0)}%`,
         };
       })
       .filter((item) => Number.isFinite(item.male + item.female))
@@ -1006,8 +1006,8 @@ function Dashboard() {
     () => [
       {
         id: "all",
-        label: "Бүх ажилууд",
-        value: formatNumber(summary?.tasks?.total ?? 0),
+        label: "Өнөөдрийн Ирц",
+        value: formatNumber(summary?.attendance?.daily[0]?.on_time ?? 0),
       },
       {
         id: "in-progress",
@@ -1091,7 +1091,7 @@ function Dashboard() {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
         <div className="grid gap-6">
           <div className="grid gap-6 lg:grid-cols-[minmax(240px,320px)_minmax(0,1fr)]">
-            <div className="flex flex-col justify-between  ">
+            <div className="flex flex-col gap-4 ">
               {stats.map((item) => (
                 <StatCard
                   key={item.id}

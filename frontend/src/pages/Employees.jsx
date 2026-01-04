@@ -776,10 +776,10 @@ function Employees() {
   useEffect(() => {
     const handle = setTimeout(() => {
       setDebouncedSearch(searchTerm.trim());
-    }, 300);
+    }, 500);
 
     return () => clearTimeout(handle);
-  }, [searchTerm]);
+  }, [debouncedSearch, searchTerm]);
 
   useEffect(() => {
     let isMounted = true;
@@ -788,53 +788,64 @@ function Employees() {
     const fetchEmployees = async () => {
       setLoading(true);
       try {
-        const params = {
-          page: 1,
+        const baseParams = {
           pageSize: API_PAGE_SIZE,
           sort: sortField,
           order: sortDirection,
+          search: debouncedSearch || undefined,
         };
 
         if (selectedStatus) {
-          params.status = selectedStatus;
+          baseParams.status = selectedStatus;
         }
         if (selectedDepartment) {
-          params.position = selectedDepartment;
+          baseParams.position = selectedDepartment;
         }
 
-        const response = await apiClient.get("/employees", {
-          params,
-          signal: controller.signal,
-        });
+        let page = 1;
+        let accumulated = [];
 
-        if (!isMounted) {
-          return;
+        while (true) {
+          const response = await apiClient.get("/employees", {
+            params: { ...baseParams, page },
+            signal: controller.signal,
+          });
+          console.log("Fetched page", page, response.data);
+          if (!isMounted) {
+            return;
+          }
+
+          const data = response.data?.data ?? [];
+          accumulated = accumulated.concat(data);
+
+          if (data.length < API_PAGE_SIZE) {
+            break;
+          }
+
+          page += 1;
         }
 
-        const data = response.data?.data ?? [];
-        setEmployees(data);
+        setEmployees(accumulated);
         setError(null);
 
         setStatusOptions((prev) => {
-          const accumulated = new Set(prev);
-          data.forEach((item) => {
-            const value = normalizeOption(item.employment_status);
-            if (value) {
-              accumulated.add(value);
+          const set = new Set(prev);
+          accumulated.forEach((item) => {
+            if (item.employment_status) {
+              set.add(item.employment_status);
             }
           });
-          return sortLabels(accumulated);
+          return sortLabels(set);
         });
 
         setDepartmentOptions((prev) => {
-          const accumulated = new Set(prev);
-          data.forEach((item) => {
-            const value = normalizeOption(item.position_title);
-            if (value) {
-              accumulated.add(value);
+          const set = new Set(prev);
+          accumulated.forEach((item) => {
+            if (item.position_title) {
+              set.add(item.position_title);
             }
           });
-          return sortLabels(accumulated);
+          return sortLabels(set);
         });
       } catch (err) {
         if (!isMounted || err.code === "ERR_CANCELED") {
@@ -864,6 +875,7 @@ function Employees() {
     sortField,
     sortDirection,
     refreshToken,
+    debouncedSearch,
   ]);
 
   const hasActiveFilters = useMemo(
