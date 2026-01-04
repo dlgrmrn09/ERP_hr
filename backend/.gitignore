@@ -1,6 +1,10 @@
 .env
+.env.*
+!.env.example
+
 dist/
+node_modules/
+
 API_SCHEMA.md
 package-lock.json
-node_modules
 tsconfig.json

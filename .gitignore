@@ -1,0 +1,12 @@
+# Root ignore rules (apply to entire repo)
+
+# Dependencies
+**/node_modules/
+
+# Build outputs
+**/dist/
+
+# Environment files (never commit secrets)
+**/.env
+**/.env.*
+!.env.example
