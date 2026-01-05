@@ -537,7 +537,7 @@ function TaskManagement() {
                   }`}
                 />
                 <span className="text-lg font-semibold">
-                  Саяхан Нэмсэн Ажилууд
+                  Сүүлд үүсгэсэн Ажилууд
                 </span>
               </button>
             </header>
@@ -546,35 +546,58 @@ function TaskManagement() {
                 <p className="mt-6 text-sm text-slate-500">Ачаалж байна...</p>
               ) : overview.boards.length ? (
                 <div className="mt-6 grid  gap-6 grid-cols-[repeat(auto-fill,_minmax(280px,_310px))]">
-                  {overview.boards.map((board) => (
-                    <Link
-                      key={board.id}
-                      to={`/tasks/boards/${board.id}`}
-                      state={{ boardName: board.name || "Нэргүй самбар" }}
-                    >
-                      <article className="rounded-2xl border border-slate-200 bg-white transition hover:shadow-lg hover:-translate-y-1 cursor-pointer">
-                        <img
-                          src="https://cdn.monday.com/images/quick_search_recent_board2.svg"
-                          alt=""
-                          aria-hidden="true"
-                          className="h-40 w-full rounded-t-2xl object-cover"
-                        />
-                        <div className="flex items-start gap-3 p-4">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-600 text-sm font-semibold text-white">
-                            {board.name?.slice(0, 1)?.toUpperCase() ?? "B"}
+                  {overview.boards.map((board, index) => {
+                    const accent = BOARD_COLORS[index % BOARD_COLORS.length];
+                    const initials =
+                      board.name?.slice(0, 1)?.toUpperCase() ?? "B";
+                    return (
+                      <Link
+                        key={board.id}
+                        to={`/tasks/boards/${board.id}`}
+                        state={{ boardName: board.name || "Нэргүй самбар" }}
+                      >
+                        <article className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-xl cursor-pointer">
+                          <div className="relative h-40 overflow-hidden">
+                            <img
+                              src="https://cdn.monday.com/images/quick_search_recent_board2.svg"
+                              alt=""
+                              aria-hidden="true"
+                              className="h-full w-full object-cover transition duration-200 group-hover:scale-105"
+                            />
+                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-900/50 via-slate-900/20 to-transparent" />
+                            <div className="absolute right-3 top-3 inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm backdrop-blur">
+                              <span
+                                className="inline-flex h-2 w-2 rounded-full"
+                                style={{ backgroundColor: accent }}
+                              />
+                              Сүүлд үзсэн
+                            </div>
                           </div>
-                          <div>
-                            <h3 className="text-base font-semibold text-slate-900">
-                              {board.name}
-                            </h3>
-                            <p className="mt-1 text-xs text-slate-500">
-                              Workspace · {board.workspaceName ?? "Тодорхойгүй"}
-                            </p>
+                          <div className="flex items-start gap-3 p-4">
+                            <div
+                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white shadow-inner"
+                              style={{
+                                background: `linear-gradient(135deg, ${accent}, #111827)`,
+                              }}
+                              aria-hidden="true"
+                            >
+                              {initials}
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="line-clamp-1 text-base font-semibold text-slate-900">
+                                {board.name}
+                              </h3>
+                              <p className="mt-1 text-xs text-slate-500">
+                                Workspace ·{" "}
+                                {board.workspaceName ?? "Тодорхойгүй"}
+                              </p>
+                              
+                            </div>
                           </div>
-                        </div>
-                      </article>
-                    </Link>
-                  ))}
+                        </article>
+                      </Link>
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="mt-6 text-sm text-slate-500">

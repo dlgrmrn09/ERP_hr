@@ -19,6 +19,7 @@ import { Bar } from "react-chartjs-2";
 import apiClient from "../utils/apiClient";
 import WhiteButton from "../components/WhiteButton";
 import Searchbar from "../components/Searchbar";
+import Loader from "../components/loader.jsx";
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
@@ -111,6 +112,46 @@ const buildDateKey = (date) =>
     "0"
   )}-${`${date.getDate()}`.padStart(2, "0")}`;
 
+const createPageList = (current, total) => {
+  // Return page items with ellipsis markers for large page sets.
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, index) => ({
+      type: "page",
+      value: index + 1,
+    }));
+  }
+
+  const windowPages = [current - 1, current, current + 1].filter(
+    (page) => page >= 1 && page <= total
+  );
+
+  const basePages = new Set([1, 2, total - 1, total, ...windowPages]);
+  const sortedPages = Array.from(basePages).sort((a, b) => a - b);
+
+  const items = [];
+  for (let i = 0; i < sortedPages.length; i += 1) {
+    const page = sortedPages[i];
+    const prev = sortedPages[i - 1];
+    if (i > 0 && page - prev > 1) {
+      items.push({ type: "ellipsis", value: `ellipsis-${page}` });
+    }
+    items.push({ type: "page", value: page });
+  }
+
+  return items;
+};
+
+const useDebounce = (value, delay = 300) => {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+
+  return debounced;
+};
+
 function TimeTracking() {
   const [records, setRecords] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -132,6 +173,7 @@ function TimeTracking() {
   );
   const [collapsedGroups, setCollapsedGroups] = useState(() => new Set());
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(null);
+  const debouncedSearchTerm = useDebounce(searchTerm, 350);
   const monthInputId = useId();
   const monthInputRef = useRef(null);
 
@@ -289,6 +331,7 @@ function TimeTracking() {
               month: monthKey,
               sort: sortOption === "lateness" ? "minutes_late" : "date",
               order: sortDirection,
+              search: debouncedSearchTerm?.trim() || undefined,
             },
             signal: controller.signal,
           })
@@ -310,8 +353,6 @@ function TimeTracking() {
         );
 
         setRecords(mergedRecords);
-        console.log(mergedRecords);
-        console.log(summaryResponse.data);
         setSummary(summaryResponse.data ?? null);
         setError(null);
       } catch (err) {
@@ -335,7 +376,7 @@ function TimeTracking() {
       isMounted = false;
       controller.abort();
     };
-  }, [activeMonthKeys, sortOption, sortDirection]);
+  }, [activeMonthKeys, sortOption, sortDirection, debouncedSearchTerm]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -381,10 +422,10 @@ function TimeTracking() {
   }, [groupBy]);
 
   const filteredRecords = useMemo(() => {
-    if (!searchTerm) {
+    if (!debouncedSearchTerm) {
       return records;
     }
-    const normalizedQuery = searchTerm.trim().toLowerCase();
+    const normalizedQuery = debouncedSearchTerm.trim().toLowerCase();
     return records.filter((record) => {
       const haystack = [
         record.employee_code,
@@ -396,7 +437,7 @@ function TimeTracking() {
         .toLowerCase();
       return haystack.includes(normalizedQuery);
     });
-  }, [records, searchTerm]);
+  }, [records, debouncedSearchTerm]);
 
   const employeeLateTotals = useMemo(() => {
     const totals = new Map();
@@ -755,6 +796,11 @@ function TimeTracking() {
   }, [sortedFilteredRecords, currentPage, pageSize, groupBy]);
 
   const totalRecords = sortedFilteredRecords.length;
+
+  const pageItems = useMemo(
+    () => createPageList(currentPage, totalPages),
+    [currentPage, totalPages]
+  );
 
   const pageRange = useMemo(() => {
     if (groupBy === "status" || totalRecords === 0) {
@@ -1288,7 +1334,10 @@ function TimeTracking() {
                             colSpan={8}
                             className="px-6 py-10 text-center text-sm text-slate-500"
                           >
-                            Өгөгдөл татаж байна...
+                            <div className="flex flex-col items-center gap-2 py-2">
+                              <Loader size={48} />
+                              <span>Өгөгдөл татаж байна...</span>
+                            </div>
                           </td>
                         </tr>
                       ) : groupBy === "status" && groupedByStatus ? (
@@ -1499,11 +1548,29 @@ function TimeTracking() {
                           disabled={currentPage === 1}
                           ariaLabel="Өмнөх хуудас"
                         />
-                        <span className="text-sm font-semibold text-slate-700">
-                          {currentPage} / {totalPages}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          {pageItems.map((item) =>
+                            item.type === "ellipsis" ? (
+                              <span
+                                key={item.value}
+                                className="px-1 text-sm font-semibold text-slate-400"
+                                aria-hidden="true"
+                              >
+                                …
+                              </span>
+                            ) : (
+                              <WhiteButton
+                                key={item.value}
+                                label={`${item.value}`}
+                                onClick={() => setCurrentPage(item.value)}
+                                isSelected={currentPage === item.value}
+                                ariaLabel={`Хуудас ${item.value}`}
+                              />
+                            )
+                          )}
+                        </div>
                         <WhiteButton
-                          label="›"
+                          label=">"
                           onClick={() =>
                             setCurrentPage((prev) =>
                               Math.min(totalPages, prev + 1)

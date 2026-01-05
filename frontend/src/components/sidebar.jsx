@@ -31,6 +31,12 @@ const taskSubnavItems = [
 function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof document === "undefined") {
+      return false;
+    }
+    return document.body.classList.contains("theme-dark");
+  });
   const [workspacePreview, setWorkspacePreview] = useState({
     items: [],
     loading: false,
@@ -78,6 +84,39 @@ function Sidebar() {
       navigate("/login", { replace: true });
     }
   };
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return undefined;
+    }
+
+    const body = document.body;
+    const updateTheme = () => {
+      setIsDark(body.classList.contains("theme-dark"));
+    };
+
+    updateTheme();
+
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(body, { attributes: true, attributeFilter: ["class"] });
+
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleMedia = () => updateTheme();
+    media.addEventListener("change", handleMedia);
+
+    const handleStorage = (event) => {
+      if (event.key === "theme") {
+        updateTheme();
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      observer.disconnect();
+      media.removeEventListener("change", handleMedia);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isTasksRouteActive) {
@@ -235,9 +274,9 @@ function Sidebar() {
 
   return (
     <aside
-      className={`max-h-dvh bg-white flex flex-col shadow-md sticky top-0 left-0 ${
-        collapsed ? "items-center " : ""
-      }`}
+      className={`max-h-dvh flex flex-col shadow-md sticky top-0 left-0 transition-colors duration-150 ${
+        collapsed ? "items-center" : ""
+      } ${isDark ? "bg-slate-900 text-slate-100" : "bg-white text-slate-900"}`}
       style={{ width: collapsed ? "80px" : "250px" }}
     >
       <div
@@ -246,8 +285,8 @@ function Sidebar() {
         } gap-3 p-6 mb-5`}
       >
         <h2
-          className={`text-[24px]  text-slate-900 font-bold ${
-            collapsed ? "hidden" : "block"
+          className={`text-[24px] font-bold ${collapsed ? "hidden" : "block"} ${
+            isDark ? "text-slate-100" : "text-slate-900"
           }`}
         >
           Хүний Нөөц
@@ -261,7 +300,9 @@ function Sidebar() {
           <img
             src={SidebarIcon}
             alt="Хүний Нөөц"
-            className="w-6.5 h-6.5 opacity-[0.6]"
+            className={`w-6.5 h-6.5 opacity-[0.6] ${
+              isDark ? "filter brightness-0 invert" : ""
+            }`}
           />
         </button>
       </div>
@@ -272,15 +313,17 @@ function Sidebar() {
               <NavLink
                 to={item.path}
                 onClick={() => handleNavItemClick(item.path)}
-                className={({ isActive }) =>
-                  `w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                className={({ isActive }) => {
+                  const active = isDark
+                    ? "bg-slate-800 text-white ring-1 ring-slate-700"
+                    : "bg-slate-900 text-white";
+                  const idle = isDark
+                    ? "text-slate-200 hover:bg-slate-800 hover:text-white"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900";
+                  return `w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                     collapsed ? "justify-center" : ""
-                  } ${
-                    isActive
-                      ? "bg-slate-900 text-white"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                  }`
-                }
+                  } ${isActive ? active : idle}`;
+                }}
               >
                 {({ isActive }) => (
                   <>
@@ -288,7 +331,11 @@ function Sidebar() {
                       src={item.icon}
                       alt={item.label}
                       className={`w-6.25 h-6.25 ${
-                        isActive ? "filter brightness-0 invert" : ""
+                        isActive
+                          ? "filter brightness-0 invert"
+                          : isDark
+                          ? "invert opacity-80"
+                          : ""
                       }`}
                     />
                     <span
@@ -297,6 +344,8 @@ function Sidebar() {
                       } text-[16px] ${
                         isActive
                           ? "text-white opacity-100"
+                          : isDark
+                          ? "text-slate-100 opacity-80"
                           : "text-black opacity-[0.6]"
                       }`}
                     >
@@ -306,7 +355,11 @@ function Sidebar() {
                 )}
               </NavLink>
               {item.path === "/tasks" && isTasksRouteActive && !collapsed && (
-                <div className="mt-2 ml-6 space-y-3 border-l border-slate-300 pl-4">
+                <div
+                  className={`mt-2 ml-6 space-y-3 border-l pl-4 ${
+                    isDark ? "border-slate-700" : "border-slate-300"
+                  }`}
+                >
                   <ul className="space-y-1">
                     {taskSubnavItems.map((subItem) => (
                       <li key={subItem.label}>
@@ -314,7 +367,11 @@ function Sidebar() {
                           to={subItem.path}
                           className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm  font-medium transition-all ${
                             isSubnavActive(subItem.path)
-                              ? " text-black"
+                              ? isDark
+                                ? "text-slate-100"
+                                : "text-black"
+                              : isDark
+                              ? "opacity-80 text-slate-200 hover:bg-slate-800 hover:text-white"
                               : "opacity-[0.6] text-black hover:bg-slate-100 hover:text-slate-900"
                           }`}
                           aria-current={
@@ -328,7 +385,7 @@ function Sidebar() {
                     ))}
                   </ul>
                   {isSubnavActive("/tasks/workspace") ? (
-                    <section className=" bg-white  ">
+                    <section className="bg-transparent">
                       {workspacePreview.loading ? (
                         <p className="mt-3 text-xs text-slate-500">
                           Workspace татаж байна...
@@ -348,7 +405,11 @@ function Sidebar() {
                         >
                           <button
                             type="button"
-                            className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                            className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm font-semibold transition focus:outline-none focus:ring-2 ${
+                              isDark
+                                ? "border-slate-700 bg-slate-800 text-slate-100 hover:border-slate-600 hover:bg-slate-700 focus:border-emerald-400 focus:ring-emerald-400/40"
+                                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 focus:border-slate-400 focus:ring-slate-200"
+                            }`}
                             onClick={() =>
                               setIsWorkspaceDropdownOpen((prev) => !prev)
                             }
@@ -368,7 +429,11 @@ function Sidebar() {
                           </button>
                           {isWorkspaceDropdownOpen ? (
                             <ul
-                              className="absolute left-0 right-0 z-20 mt-2 max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-xl"
+                              className={`absolute left-0 right-0 z-20 mt-2 max-h-56 overflow-y-auto rounded-lg border py-1 shadow-xl ${
+                                isDark
+                                  ? "border-slate-700 bg-slate-900"
+                                  : "border-slate-200 bg-white"
+                              }`}
                               role="listbox"
                             >
                               {workspacePreview.items.map((workspace) => {
@@ -381,7 +446,11 @@ function Sidebar() {
                                       type="button"
                                       className={`flex w-full items-center px-3 py-2 text-left text-sm transition ${
                                         isSelected
-                                          ? "bg-slate-100 font-semibold text-slate-900"
+                                          ? isDark
+                                            ? "bg-slate-800 font-semibold text-slate-100"
+                                            : "bg-slate-100 font-semibold text-slate-900"
+                                          : isDark
+                                          ? "text-slate-200 hover:bg-slate-800 hover:text-white"
                                           : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                                       }`}
                                       onClick={() => {
@@ -414,20 +483,26 @@ function Sidebar() {
             type="button"
             onClick={handleLogout}
             disabled={isLoggingOut}
-            className={`w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer ${
+            className={`w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
               collapsed ? "justify-center" : ""
+            } ${
+              isDark
+                ? "text-slate-200 hover:bg-slate-800 hover:text-white"
+                : "text-slate-600 border-gray- hover:bg-slate-100 hover:text-slate-900"
             } ${isLoggingOut ? "opacity-60 cursor-not-allowed" : ""}`}
             aria-disabled={isLoggingOut}
           >
             <img
               src={LogoutIcon}
               alt="Logout"
-              className="w-6.25 h-6.25 opacity-[0.6]"
+              className={`w-6.25 h-6.25 opacity-[0.6] ${
+                isDark ? "invert" : ""
+              }`}
             />
             <span
-              className={`opacity-[0.6] text-black text-[16px] ${
+              className={`opacity-[0.6] text-[16px] ${
                 collapsed ? "hidden" : "block"
-              }`}
+              } ${isDark ? "text-slate-100" : "text-black"}`}
             >
               Системээс гарах
             </span>

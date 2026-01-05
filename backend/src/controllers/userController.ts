@@ -83,7 +83,7 @@ export const getUser = asyncHandler(async (req, res) => {
   );
 
   if (userResult.rows.length === 0) {
-    return res.status(404).json({ message: "User not found" });
+    return res.status(404).json({ message: "Хэрэглэгч олдсонгүй" });
   }
 
   return res.json({ user: userResult.rows[0] });
@@ -105,19 +105,19 @@ export const createUser = asyncHandler(async (req, res) => {
   const { firstName, lastName, email, password, roleName } = req.body;
 
   if (!firstName || !lastName || !email || !password || !roleName) {
-    return res.status(400).json({ message: "Missing required fields" });
+    return res.status(400).json({ message: "Мэдээлэл дутуу байна" });
   }
 
   const roleId = await fetchRoleId(roleName);
   if (!roleId) {
-    return res.status(400).json({ message: "Role not found" });
+    return res.status(400).json({ message: "Бүлэг олдсонгүй" });
   }
 
   const existing = await pool.query(`SELECT 1 FROM users WHERE email = $1`, [
     email.toLowerCase(),
   ]);
   if (existing.rows.length > 0) {
-    return res.status(400).json({ message: "User already exists" });
+    return res.status(400).json({ message: "Хэрэглэгч аль хэдийн бүртгэгдсэн байна" });
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
@@ -166,7 +166,7 @@ export const updateUser = asyncHandler(async (req, res) => {
     );
     if (existingUser.rows.length === 0) {
       await client.query("ROLLBACK");
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "Хэрэглэгч олдсонгүй" });
     }
 
     const userRow = existingUser.rows[0];
@@ -177,7 +177,7 @@ export const updateUser = asyncHandler(async (req, res) => {
       roleName !== userRow.role
     ) {
       await client.query("ROLLBACK");
-      return res.status(400).json({ message: "Cannot change own role" });
+      return res.status(400).json({ message: "Өөрийн бүлгийг өөрчилж болохгүй" });
     }
 
     if (
@@ -193,7 +193,7 @@ export const updateUser = asyncHandler(async (req, res) => {
         await client.query("ROLLBACK");
         return res
           .status(400)
-          .json({ message: "At least one Administrator must remain active" });
+          .json({ message: "Хамгийн багадаа нэг Администратор идэвхтэй байх ёстой" });
       }
     }
 
@@ -202,7 +202,7 @@ export const updateUser = asyncHandler(async (req, res) => {
       const roleId = await fetchRoleId(roleName);
       if (!roleId) {
         await client.query("ROLLBACK");
-        return res.status(400).json({ message: "Role not found" });
+        return res.status(400).json({ message: "Role олдсонгүй" });
       }
       newRoleId = roleId;
     }
@@ -234,7 +234,7 @@ export const updateUser = asyncHandler(async (req, res) => {
 
     if (updates.length === 0) {
       await client.query("ROLLBACK");
-      return res.status(400).json({ message: "No fields to update" });
+      return res.status(400).json({ message: "Мэдээлэл дутуу байна" });
     }
 
     updates.push(`updated_at = now()`);
@@ -267,7 +267,7 @@ export const updateUser = asyncHandler(async (req, res) => {
 export const deleteUser = asyncHandler(async (req, res) => {
   const targetUserId = Number(req.params["id"]);
   if (req.user?.id === targetUserId) {
-    return res.status(400).json({ message: "Cannot deactivate yourself" });
+    return res.status(400).json({ message: "Өөрийгөө идэвхгүй болгох боломжгүй" });
   }
 
   const client = await pool.connect();
@@ -283,7 +283,7 @@ export const deleteUser = asyncHandler(async (req, res) => {
 
     if (userResult.rows.length === 0) {
       await client.query("ROLLBACK");
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "Хэрэглэгч олдсонгүй" });
     }
 
     const userRow = userResult.rows[0];
@@ -297,7 +297,7 @@ export const deleteUser = asyncHandler(async (req, res) => {
         await client.query("ROLLBACK");
         return res
           .status(400)
-          .json({ message: "At least one Administrator must remain active" });
+          .json({ message: "Хамгийн багадаа нэг Администратор идэвхтэй байх ёстой" });
       }
     }
 

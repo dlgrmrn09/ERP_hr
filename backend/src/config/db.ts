@@ -12,11 +12,11 @@ const pool = new Pool({
 });
 
 pool.on("connect", () => {
-  console.log("Connected to the database");
+  console.log("Датабазтай амжилттай холбогдлоо.");
 });
 
 pool.on("error", (err) => {
-  console.error("Unexpected error on idle client", err);
+  console.error("Гэнэтийн алдаа гарлаа", err);
   process.exit(-1);
 });
 

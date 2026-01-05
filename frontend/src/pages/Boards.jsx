@@ -4,6 +4,15 @@ import apiClient from "../utils/apiClient";
 import SearchIcon from "../assets/icons8-search.svg";
 import Searchbar from "../components/Searchbar.jsx";
 
+const BOARD_ACCENTS = [
+  "#22F48B",
+  "#60DCFF",
+  "#FF4747",
+  "#F97316",
+  "#A855F7",
+  "#6366F1",
+];
+
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
@@ -769,71 +778,100 @@ function Boards() {
     }
   };
 
-  const cards = filteredBoards.map((board) => {
+  const cards = filteredBoards.map((board, index) => {
     const memberCount = Number(board.member_count) || 0;
     const workspaceName =
       workspaceLookup[String(board.workspace_id)] || "Workspace тодорхойгүй";
+    const accent = BOARD_ACCENTS[index % BOARD_ACCENTS.length];
+    const initials = board.name?.slice(0, 1)?.toUpperCase() || "B";
+
     return (
       <article
         key={board.id}
-        className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+        className="group relative flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-xl"
       >
-        <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-base font-semibold text-slate-700">
-              {board.name?.slice(0, 1)?.toUpperCase() || "B"}
-            </span>
-            <div>
-              <h3 className="text-sm font-semibold text-slate-900">
-                {board.name || "Нэргүй самбар"}
-              </h3>
-              <p className="text-xs text-slate-500">{workspaceName}</p>
-            </div>
+        <div
+          className="h-1.5 w-full"
+          style={{ background: `linear-gradient(120deg, ${accent}, #0f172a)` }}
+          aria-hidden="true"
+        />
+
+        <div className="flex items-start gap-3 px-5 py-4">
+          <div
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white shadow-inner"
+            style={{
+              background: `linear-gradient(135deg, ${accent}, #111827)`,
+            }}
+            aria-hidden="true"
+          >
+            {initials}
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
-              onClick={() => openEditBoardModal(board)}
-            >
-              Засах
-            </button>
-            <button
-              type="button"
-              className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-medium text-rose-600 transition hover:border-rose-300 hover:bg-rose-100"
-              onClick={() => handleDeleteBoard(board.id)}
-            >
-              Устгах
-            </button>
+          <div className="flex-1">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-base font-semibold text-slate-900 line-clamp-1">
+                  {board.name || "Нэргүй самбар"}
+                </h3>
+                <p className="mt-1 text-xs text-slate-500 line-clamp-1">
+                  Workspace · {workspaceName}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+                  onClick={() => openEditBoardModal(board)}
+                >
+                  Засах
+                </button>
+                <button
+                  type="button"
+                  className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-600 transition hover:border-rose-300 hover:bg-rose-100"
+                  onClick={() => handleDeleteBoard(board.id)}
+                >
+                  Устгах
+                </button>
+              </div>
+            </div>
+            <p className="mt-3 line-clamp-3 text-sm text-slate-600">
+              {board.description || "Тайлбар алга."}
+            </p>
           </div>
         </div>
-        <div className="flex flex-1 flex-col gap-4 px-5 py-4">
-          <p className="line-clamp-3 text-sm text-slate-600">
-            {board.description || "Тайлбар алга."}
-          </p>
-          <div className="flex flex-wrap items-center gap-4 justify-between mt-8 text-xs text-slate-500">
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-              {memberCount} {memberCount === 1 ? "гишүүн" : "гишүүд"}
+
+        <div className="flex flex-wrap items-center gap-3 px-5 pb-4 text-xs text-slate-500">
+          <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700">
+            <span
+              className="inline-flex h-2 w-2 rounded-full"
+              style={{ backgroundColor: accent }}
+              aria-hidden="true"
+            />
+            {memberCount} {memberCount === 1 ? "гишүүн" : "гишүүд"}
+          </span>
+          <span className="rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700">
+            Шинэчлэгдсэн: {formatDate(board.updated_at)}
+          </span>
+        </div>
+
+        <div className="mt-auto flex items-center justify-between border-t border-slate-100 px-5 py-4 text-xs text-slate-500">
+          <span className="flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-700">
+              {buildCreatorInitials(board)}
             </span>
-            <span>Шинэчлэгдсэн: {formatDate(board.updated_at)}</span>
-          </div>
-          <div className="mt-auto flex items-center justify-between border-t border-slate-100 pt-4 text-xs text-slate-500">
-            <span className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-700">
-                {buildCreatorInitials(board)}
-              </span>
-              <span className="font-medium text-slate-700">
-                {buildCreatorName(board)}
-              </span>
+            <span className="font-medium text-slate-700">
+              {buildCreatorName(board)}
             </span>
-            <Link
-              to={`/tasks/boards/${board.id}`}
-              state={{ boardName: board.name || "Нэргүй самбар" }}
-              className="text-xs font-semibold text-slate-600 underline-offset-4 transition hover:text-slate-900 hover:underline cursor-pointer"
-            >
-              дэлгэрэнгүй
-            </Link>
-          </div>
+          </span>
+          <Link
+            to={`/tasks/boards/${board.id}`}
+            state={{ boardName: board.name || "Нэргүй самбар" }}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 underline-offset-4 transition hover:text-indigo-700 hover:underline"
+          >
+            Дэлгэрэнгүй
+            <span className="transition duration-200 group-hover:translate-x-1">
+              →
+            </span>
+          </Link>
         </div>
       </article>
     );

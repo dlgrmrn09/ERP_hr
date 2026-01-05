@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import pool from "../config/db";
 import { asyncHandler } from "../utils/asyncHandler";
 import { parsePagination, buildPaginationMeta } from "../utils/pagination";
-import { resolveFileUrl } from "../utils/storage";
+import { resolveFileUrl, toAbsoluteFileUrl } from "../utils/storage";
 
 type AuthenticatedRequest = Request & { user?: { id: number } };
 
@@ -64,8 +64,13 @@ export const listDocuments = asyncHandler(
       [...values, pageSize, offset]
     );
 
+    const documents = dataResult.rows.map((doc) => ({
+      ...doc,
+      file_url: toAbsoluteFileUrl(doc.file_url),
+    }));
+
     res.json({
-      data: dataResult.rows,
+      data: documents,
       pagination: buildPaginationMeta(
         page,
         pageSize,
@@ -91,10 +96,13 @@ export const getDocument = asyncHandler(async (req: Request, res: Response) => {
   );
 
   if (result.rows.length === 0) {
-    return res.status(404).json({ message: "Document not found" });
+    return res.status(404).json({ message: "Бичиг баримт олдсонгүй" });
   }
 
-  return res.json({ document: result.rows[0] });
+  const doc = result.rows[0];
+  return res.json({
+    document: { ...doc, file_url: toAbsoluteFileUrl(doc.file_url) },
+  });
 });
 
 const resolveCategoryId = async (name: string): Promise<number | undefined> => {
@@ -116,12 +124,12 @@ export const createDocument = asyncHandler(
     const finalFileSize = uploadedFile ? uploadedFile.size : fileSizeBytes;
 
     if (!title || !category || !finalFileUrl) {
-      return res.status(400).json({ message: "Missing required fields" });
+      return res.status(400).json({ message: "Мэдээлэл дутуу байна" });
     }
 
     const categoryId = await resolveCategoryId(category);
     if (!categoryId) {
-      return res.status(400).json({ message: "Invalid category" });
+      return res.status(400).json({ message: "Бичиг Баримтны төрөл олдсонгүй" });
     }
 
     const insertResult = await pool.query(
@@ -144,7 +152,12 @@ export const createDocument = asyncHandler(
       [insertResult.rows[0].id]
     );
 
-    return res.status(201).json({ document: document.rows[0] });
+    const created = document.rows[0];
+    return res
+      .status(201)
+      .json({
+        document: { ...created, file_url: toAbsoluteFileUrl(created.file_url) },
+      });
   }
 );
 
@@ -188,7 +201,7 @@ export const updateDocument = asyncHandler(
     if (category) {
       const categoryId = await resolveCategoryId(category);
       if (!categoryId) {
-        return res.status(400).json({ message: "Invalid category" });
+        return res.status(400).json({ message: "Бичиг Баримтны төрөл олдсонгүй" });
       }
       updates.push(`category_id = $${idx}`);
       values.push(categoryId);
@@ -196,7 +209,7 @@ export const updateDocument = asyncHandler(
     }
 
     if (updates.length === 0) {
-      return res.status(400).json({ message: "No fields to update" });
+      return res.status(400).json({ message: "Мэдээлэл дутуу байна" });
     }
 
     updates.push(`updated_at = now()`);
@@ -211,7 +224,7 @@ export const updateDocument = asyncHandler(
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Document not found" });
+      return res.status(404).json({ message: "Бичиг баримт олдсонгүй" });
     }
 
     const document = await pool.query(
@@ -220,7 +233,10 @@ export const updateDocument = asyncHandler(
       [result.rows[0].id]
     );
 
-    return res.json({ document: document.rows[0] });
+    const updated = document.rows[0];
+    return res.json({
+      document: { ...updated, file_url: toAbsoluteFileUrl(updated.file_url) },
+    });
   }
 );
 
@@ -233,7 +249,7 @@ export const deleteDocument = asyncHandler(
     );
 
     if (result.rowCount === 0) {
-      return res.status(404).json({ message: "Document not found" });
+      return res.status(404).json({ message: "Бичиг баримт олдсонгүй" });
     }
 
     return res.status(204).end();

@@ -44,12 +44,12 @@ const registerForRole = async ({
   };
 
   if (!firstName || !lastName || !email || !password) {
-    return res.status(400).json({ message: "Missing required fields" });
+    return res.status(400).json({ message: "Мэдээлэл дутуу байна" });
   }
 
   const roleId = await fetchRoleId(roleName);
   if (!roleId) {
-    return res.status(500).json({ message: `${roleName} role missing` });
+    return res.status(500).json({ message: `${roleName}  олдсонгүй` });
   }
 
   if (unique) {
@@ -63,7 +63,7 @@ const registerForRole = async ({
     if (existingCount.rows[0].total > 0) {
       return res
         .status(409)
-        .json({ message: `${roleName} already registered` });
+        .json({ message: `${roleName}  бүртгэгдсэн байна` });
     }
   }
 
@@ -72,7 +72,7 @@ const registerForRole = async ({
     [email.toLowerCase()]
   );
   if (existingUser.rows.length > 0) {
-    return res.status(400).json({ message: "User already exists" });
+    return res.status(400).json({ message: "Хэрэглэгч бүртгэлтэй байна" });
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
@@ -106,7 +106,7 @@ export const registerBootstrap = asyncHandler(
     };
 
     if (!firstName || !lastName || !email || !password) {
-      return res.status(400).json({ message: "Missing required fields" });
+      return res.status(400).json({ message: "Мэдээлэл дутуу байна" });
     }
 
     const userCountResult = await pool.query(
@@ -115,7 +115,7 @@ export const registerBootstrap = asyncHandler(
     if (userCountResult.rows[0].total > 0) {
       return res
         .status(403)
-        .json({ message: "Initial registration already completed" });
+        .json({ message: "Анхны бүртгэл аль хэдийн хийгдсэн байна" });
     }
 
     const existingUser = await pool.query(
@@ -123,7 +123,7 @@ export const registerBootstrap = asyncHandler(
       [email]
     );
     if (existingUser.rows.length > 0) {
-      return res.status(400).json({ message: "User already exists" });
+      return res.status(400).json({ message: "Хэрэглэгч бүртгэлтэй байна" });
     }
 
     const roleResult = await pool.query(
@@ -131,7 +131,7 @@ export const registerBootstrap = asyncHandler(
       ["Administrator"]
     );
     if (roleResult.rows.length === 0) {
-      return res.status(500).json({ message: "Administrator role missing" });
+      return res.status(500).json({ message: "Administrator олдсонгүй" });
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
@@ -180,7 +180,7 @@ export const registerHR = asyncHandler(async (req: Request, res: Response) => {
 export const login = asyncHandler(async (req: Request, res: Response) => {
   const { email, password } = req.body as { email?: string; password?: string };
   if (!email || !password) {
-    return res.status(400).json({ message: "Missing credentials" });
+    return res.status(400).json({ message: "Мэдээлэл дутуу байна" });
   }
 
   const userResult = await pool.query(
@@ -192,13 +192,13 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   );
 
   if (userResult.rows.length === 0) {
-    return res.status(401).json({ message: "Invalid credentials" });
+    return res.status(401).json({ message: "Нэвтрэх мэдээлэл буруу байна" });
   }
 
   const user = userResult.rows[0];
   const isMatch = await bcrypt.compare(password, user.password_hash);
   if (!isMatch) {
-    return res.status(401).json({ message: "Invalid credentials" });
+    return res.status(401).json({ message: "Нэвтрэх мэдээлэл буруу байна" });
   }
 
   const token = generateToken(user.user_id);

@@ -123,7 +123,7 @@ export const getAttendance = asyncHandler(async (req, res) => {
   );
 
   if (result.rows.length === 0) {
-    return res.status(404).json({ message: "Attendance record not found" });
+    return res.status(404).json({ message: "Ирцийн бүртгэл олдсонгүй" });
   }
 
   return res.json({ attendance: result.rows[0] });
@@ -154,7 +154,7 @@ export const createAttendance = asyncHandler(
         overtimeMinutes: overtimeMinutesValue,
       })
     ) {
-      return res.status(400).json({ message: "Invalid attendance payload" });
+      return res.status(400).json({ message: "Ирцийн бүртгэлийн мэдээлэл буруу байна" });
     }
 
     const employeeExists = await pool.query(
@@ -162,7 +162,7 @@ export const createAttendance = asyncHandler(
       [employeeId]
     );
     if (employeeExists.rows.length === 0) {
-      return res.status(400).json({ message: "Employee not found" });
+      return res.status(400).json({ message: "Ажилтан олдсонгүй" });
     }
 
     const existingRecord = await pool.query(
@@ -172,7 +172,7 @@ export const createAttendance = asyncHandler(
     if (existingRecord.rows.length > 0) {
       return res
         .status(400)
-        .json({ message: "Attendance record for this date already exists" });
+        .json({ message: "Ирцийн бүртгэл энэ өдөрт аль хэдийн бүртгэгдсэн байна" });
     }
 
     const insertResult = await pool.query(
@@ -232,7 +232,7 @@ export const updateAttendance = asyncHandler(async (req, res) => {
     if (Number.isNaN(overtimeMinutesValue) || overtimeMinutesValue < 0) {
       return res
         .status(400)
-        .json({ message: "overtimeMinutes cannot be negative" });
+        .json({ message: "Илүү цагийн минут сөрөг утгатай байж болохгүй" });
     }
     updates.push(`overtime_minutes = $${idx}`);
     values.push(overtimeMinutesValue);
@@ -245,7 +245,7 @@ export const updateAttendance = asyncHandler(async (req, res) => {
   }
 
   if (updates.length === 0) {
-    return res.status(400).json({ message: "No fields to update" });
+    return res.status(400).json({ message: "Шинэчлэх мэдээлэлээ оруулна уу" });
   }
 
   values.push(req.params["id"]);
@@ -258,7 +258,7 @@ export const updateAttendance = asyncHandler(async (req, res) => {
   );
 
   if (result.rows.length === 0) {
-    return res.status(404).json({ message: "Attendance record not found" });
+    return res.status(404).json({ message: "Ирцийн бүртгэл олдсонгүй" });
   }
 
   const record = await pool.query(
@@ -298,7 +298,7 @@ export const getAggregates = asyncHandler(async (req, res) => {
 });
 
 export const refreshAggregates = asyncHandler(async (_req, res) => {
-  res.json({ message: "Attendance aggregates update automatically" });
+  res.json({ message: "Ирцийн нийлбэрүүд автоматаар шинэчлэгддэг" });
 });
 
 export default {

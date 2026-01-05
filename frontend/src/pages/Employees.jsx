@@ -100,6 +100,8 @@ const SORT_FIELDS = [
   { value: "created_at", label: "Нэмсэн огноо" },
 ];
 
+const MAX_CV_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+
 const FORM_INITIAL_STATE = {
   employeeCode: "",
   firstName: "",
@@ -112,6 +114,7 @@ const FORM_INITIAL_STATE = {
   age: "",
   startDate: new Date().toISOString().slice(0, 10),
   cvUrl: "",
+  cvFile: null,
 };
 
 const GENDER_OPTIONS = [
@@ -143,21 +146,40 @@ const normalizeEmployeeForForm = (employee) => ({
       : "",
   startDate: employee.start_date ? employee.start_date.slice(0, 10) : "",
   cvUrl: employee.cv_url ?? "",
+  cvFile: null,
 });
 
-const buildEmployeePayload = (values) => ({
-  employeeCode: values.employeeCode.trim(),
-  firstName: values.firstName.trim(),
-  lastName: values.lastName.trim(),
-  email: values.email.trim().toLowerCase(),
-  phoneNumber: values.phoneNumber.trim(),
-  positionTitle: values.positionTitle.trim(),
-  employmentStatus: values.employmentStatus.trim(),
-  gender: values.gender.trim(),
-  age: values.age === "" ? null : values.age.trim(),
-  startDate: values.startDate || null,
-  cvUrl: values.cvUrl.trim(),
+const buildEmployeePayload = (values = FORM_INITIAL_STATE) => ({
+  employeeCode: values?.employeeCode?.trim?.() || "",
+  firstName: values?.firstName?.trim?.() || "",
+  lastName: values?.lastName?.trim?.() || "",
+  email: values?.email?.trim?.().toLowerCase() || "",
+  phoneNumber: values?.phoneNumber?.trim?.() || "",
+  positionTitle: values?.positionTitle?.trim?.() || "",
+  employmentStatus: values?.employmentStatus?.trim?.() || "",
+  gender: values?.gender?.trim?.() || "",
+  age:
+    typeof values?.age === "undefined" || values?.age === ""
+      ? null
+      : values?.age?.toString?.().trim?.(),
+  startDate: values?.startDate || null,
+  cvUrl: values?.cvUrl?.trim?.() || "",
 });
+
+const resolveFileUrl = (url) => {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+
+  const apiBase = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
+  const backendBase = apiBase.replace(/\/api\/?$/, "");
+  const normalized = url.startsWith("/")
+    ? url
+    : url.startsWith("uploads")
+    ? `/${url}`
+    : `/uploads/${url}`;
+
+  return `${backendBase}${normalized}`;
+};
 
 const toSearchString = (employee) =>
   Object.values(employee)
@@ -179,15 +201,33 @@ const toSearchString = (employee) =>
     .join(" ")
     .toLowerCase();
 
-const createPageList = (current, total, maxVisible = 5) => {
-  if (total <= 1) {
-    return [1];
+const createPageList = (current, total) => {
+  // Return a list of pages plus ellipsis markers for large page counts.
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, index) => ({
+      type: "page",
+      value: index + 1,
+    }));
   }
-  const half = Math.floor(maxVisible / 2);
-  let start = Math.max(1, current - half);
-  let end = Math.min(total, start + maxVisible - 1);
-  start = Math.max(1, end - maxVisible + 1);
-  return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+
+  const windowPages = [current - 1, current, current + 1].filter(
+    (page) => page >= 1 && page <= total
+  );
+
+  const basePages = new Set([1, 2, total - 1, total, ...windowPages]);
+  const sortedPages = Array.from(basePages).sort((a, b) => a - b);
+
+  const items = [];
+  for (let i = 0; i < sortedPages.length; i += 1) {
+    const page = sortedPages[i];
+    const prev = sortedPages[i - 1];
+    if (i > 0 && page - prev > 1) {
+      items.push({ type: "ellipsis", value: `ellipsis-${page}` });
+    }
+    items.push({ type: "page", value: page });
+  }
+
+  return items;
 };
 
 function FilterSelect({
@@ -199,6 +239,7 @@ function FilterSelect({
   className = "",
   allowEmpty = true,
   uppercaseLabel = true,
+  isDark = false,
 }) {
   const triggerRef = useRef(null);
   const menuRef = useRef(null);
@@ -243,28 +284,42 @@ function FilterSelect({
     <label
       className={`flex flex-col gap-2 text-xs font-semibold ${
         uppercaseLabel ? "uppercase tracking-wide" : ""
-      } text-slate-500 ${className}`}
+      } ${isDark ? "text-slate-300" : "text-slate-500"} ${className}`}
     >
       <span>{label}</span>
-      <div className="relative w-87.5">
+      <div className="relative w-full">
         <button
           type="button"
           ref={triggerRef}
           onClick={() => setOpenMenu((previous) => !previous)}
-          className={`flex h-12 w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-sky-100 ${
-            openMenu ? "border-sky-400" : "hover:border-sky-300"
+          className={`flex h-12 w-full items-center justify-between rounded-2xl px-4 text-sm font-semibold transition focus:outline-none focus:ring-2 ${
+            isDark
+              ? "border border-slate-700 bg-slate-900 text-slate-100 focus:ring-slate-700 hover:border-slate-500"
+              : "border border-slate-200 bg-white text-slate-700 focus:ring-sky-100 hover:border-sky-300"
+          } ${
+            openMenu ? (isDark ? "border-slate-500" : "border-sky-400") : ""
           }`}
           aria-haspopup="listbox"
           aria-expanded={openMenu}
         >
           <span
             className={`truncate ${
-              isPlaceholder ? "text-slate-400 font-medium" : "text-slate-700"
+              isPlaceholder
+                ? isDark
+                  ? "text-slate-500 font-medium"
+                  : "text-slate-400 font-medium"
+                : isDark
+                ? "text-slate-100"
+                : "text-slate-700"
             }`}
           >
             {displayLabel}
           </span>
-          <span className="ml-3 inline-flex items-center text-slate-400">
+          <span
+            className={`ml-3 inline-flex items-center ${
+              isDark ? "text-slate-400" : "text-slate-400"
+            }`}
+          >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 20 20"
@@ -288,7 +343,11 @@ function FilterSelect({
         {openMenu ? (
           <div
             ref={menuRef}
-            className="absolute left-0 right-0 top-[calc(100%+8px)] z-10 rounded-2xl border border-slate-200 bg-white py-1 shadow-[0_20px_40px_rgba(15,23,42,0.08)]"
+            className={`absolute left-0 right-0 top-[calc(100%+8px)] z-10 rounded-2xl border py-1 shadow-[0_20px_40px_rgba(15,23,42,0.14)] ${
+              isDark
+                ? "border-slate-700 bg-slate-900 text-slate-100"
+                : "border-slate-200 bg-white"
+            }`}
           >
             <ul role="listbox" className="max-h-60 overflow-y-auto py-1">
               {allowEmpty && placeholder ? (
@@ -296,8 +355,14 @@ function FilterSelect({
                   <button
                     type="button"
                     onClick={() => handleSelect("")}
-                    className={`flex w-full items-center justify-between px-4 py-2 text-left text-sm font-medium transition hover:bg-slate-50 ${
-                      value === "" ? "text-sky-600" : "text-slate-600"
+                    className={`flex w-full items-center justify-between px-4 py-2 text-left text-sm font-medium transition ${
+                      isDark ? "hover:bg-slate-800" : "hover:bg-slate-50"
+                    } ${
+                      value === ""
+                        ? "text-sky-500"
+                        : isDark
+                        ? "text-slate-200"
+                        : "text-slate-600"
                     }`}
                     role="option"
                     aria-selected={value === ""}
@@ -316,8 +381,14 @@ function FilterSelect({
                     <button
                       type="button"
                       onClick={() => handleSelect(option.value)}
-                      className={`flex w-full items-center justify-between px-4 py-2 text-left text-sm font-medium transition hover:bg-slate-50 ${
-                        isActive ? "text-sky-600" : "text-slate-600"
+                      className={`flex w-full items-center justify-between px-4 py-2 text-left text-sm font-medium transition ${
+                        isDark ? "hover:bg-slate-800" : "hover:bg-slate-50"
+                      } ${
+                        isActive
+                          ? "text-sky-500"
+                          : isDark
+                          ? "text-slate-200"
+                          : "text-slate-600"
                       }`}
                       role="option"
                       aria-selected={isActive}
@@ -338,10 +409,20 @@ function FilterSelect({
   );
 }
 
-function SortDirectionToggle({ value, onChange }) {
+function SortDirectionToggle({ value, onChange, isDark = false }) {
   return (
-    <fieldset className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-      <div className="inline-flex w-full items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1 mt-6">
+    <fieldset
+      className={`flex flex-col gap-2 text-xs font-semibold uppercase tracking-wide ${
+        isDark ? "text-slate-300" : "text-slate-500"
+      }`}
+    >
+      <div
+        className={`mt-6 inline-flex w-full items-center justify-between gap-2 rounded-2xl p-1 ${
+          isDark
+            ? "border border-slate-700 bg-slate-900"
+            : "border border-slate-200 bg-slate-50"
+        }`}
+      >
         {["asc", "desc"].map((direction) => {
           const isActive = value === direction;
           return (
@@ -349,10 +430,18 @@ function SortDirectionToggle({ value, onChange }) {
               type="button"
               key={direction}
               onClick={() => onChange(direction)}
-              className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 ${
+              className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 ${
                 isActive
-                  ? "bg-[#191e21] text-white shadow-[0_12px_20px_rgba(14,116,144,0.2)]"
+                  ? isDark
+                    ? "bg-slate-700 text-white shadow-[0_12px_20px_rgba(15,23,42,0.3)]"
+                    : "bg-[#191e21] text-white shadow-[0_12px_20px_rgba(14,116,144,0.2)]"
+                  : isDark
+                  ? "text-slate-200 hover:bg-slate-800"
                   : "text-slate-600 hover:bg-white"
+              } ${
+                isDark
+                  ? "focus-visible:ring-slate-700"
+                  : "focus-visible:ring-sky-200"
               }`}
               aria-pressed={isActive}
             >
@@ -372,20 +461,29 @@ function PaginationControls({
   pageSize,
   onPageChange,
   onPageSizeChange,
+  isDark = false,
 }) {
   if (totalPages <= 1) {
     return null;
   }
 
-  const pages = createPageList(page, totalPages);
+  const pageItems = createPageList(page, totalPages);
 
   return (
     <nav
-      className="mt-10 flex flex-col gap-4 rounded-3xl border border-slate-200/70 bg-white/60 px-4 py-3 text-sm text-slate-600 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+      className={`mt-10 flex flex-col gap-4 rounded-3xl px-4 py-3 text-sm shadow-md sm:flex-row sm:items-center sm:justify-between ${
+        isDark
+          ? "border border-slate-700 bg-slate-900/80 text-slate-200 shadow-slate-900/30"
+          : "bg-white/60 text-slate-600"
+      }`}
       aria-label="Хуудаслалт"
     >
       <div className="flex items-center gap-3">
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
+            isDark ? "bg-slate-800 text-white" : "bg-[#191e21] text-white"
+          }`}
+        >
           Нийт: {totalItems}
         </span>
         <FilterSelect
@@ -400,6 +498,7 @@ function PaginationControls({
           allowEmpty={false}
           className="!text-[11px] !font-semibold"
           uppercaseLabel={false}
+          isDark={isDark}
         />
       </div>
 
@@ -407,27 +506,47 @@ function PaginationControls({
         <button
           type="button"
           onClick={() => onPageChange(Math.max(1, page - 1))}
-          className="inline-flex h-10 items-center justify-center rounded-full border border-slate-200 bg-white px-4 font-semibold text-slate-600 transition hover:border-sky-400 hover:text-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+          className={`inline-flex h-10 items-center justify-center rounded-full px-4 font-semibold transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed ${
+            isDark
+              ? "border border-slate-700 bg-slate-800 text-slate-200 hover:border-slate-500 focus:ring-slate-700 disabled:border-slate-800 disabled:text-slate-600"
+              : "border border-slate-200 bg-white text-slate-600 hover:border-[#191e21] focus:ring-sky-100 disabled:border-slate-200 disabled:text-slate-300"
+          }`}
           disabled={page === 1}
         >
-          Өмнөх
+          {`<`}
         </button>
         <div className="flex items-center gap-1">
-          {pages.map((pageNumber) => {
-            const isActive = pageNumber === page;
+          {pageItems.map((item) => {
+            if (item.type === "ellipsis") {
+              return (
+                <span
+                  key={item.value}
+                  className="px-2 text-sm font-semibold text-slate-400"
+                  aria-hidden="true"
+                >
+                  …
+                </span>
+              );
+            }
+
+            const isActive = item.value === page;
             return (
               <button
                 type="button"
-                key={pageNumber}
-                onClick={() => onPageChange(pageNumber)}
-                className={`h-10 min-w-10 rounded-full border px-3 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-sky-100 ${
+                key={item.value}
+                onClick={() => onPageChange(item.value)}
+                className={`h-10 min-w-10 rounded-full border px-3 text-sm font-semibold transition focus:outline-none focus:ring-2 ${
                   isActive
-                    ? "border-sky-500 bg-sky-500 text-white shadow-[0_12px_20px_rgba(14,116,144,0.18)]"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-sky-400 hover:text-sky-600"
+                    ? isDark
+                      ? "border-slate-600 bg-slate-700 text-white shadow-[0_12px_20px_rgba(15,23,42,0.25)] focus:ring-slate-700"
+                      : "bg-[#191e21] text-white shadow-[0_12px_20px_rgba(14,116,144,0.18)] focus:ring-sky-100"
+                    : isDark
+                    ? "border-slate-700 bg-slate-800 text-slate-200 hover:border-slate-500 hover:text-white focus:ring-slate-700"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-sky-400 hover:text-sky-600 focus:ring-sky-100"
                 }`}
                 aria-current={isActive ? "page" : undefined}
               >
-                {pageNumber}
+                {item.value}
               </button>
             );
           })}
@@ -435,17 +554,28 @@ function PaginationControls({
         <button
           type="button"
           onClick={() => onPageChange(Math.min(totalPages, page + 1))}
-          className="inline-flex h-10 items-center justify-center rounded-full border border-slate-200 bg-white px-4 font-semibold text-slate-600 transition hover:border-sky-400 hover:text-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+          className={`inline-flex h-10 items-center justify-center rounded-full px-4 font-semibold transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed ${
+            isDark
+              ? "border border-slate-700 bg-slate-800 text-slate-200 hover:border-slate-500 focus:ring-slate-700 disabled:border-slate-800 disabled:text-slate-600"
+              : "border border-slate-200 bg-white text-slate-600 hover:border-[#191e21] focus:ring-sky-100 disabled:border-slate-200 disabled:text-slate-300"
+          }`}
           disabled={page === totalPages}
         >
-          Дараах
+          {`>`}
         </button>
       </div>
     </nav>
   );
 }
 
-function EmployeeCard({ employee, onEdit, onDelete, onView, isDeleting }) {
+function EmployeeCard({
+  employee,
+  onEdit,
+  onDelete,
+  onView,
+  isDeleting,
+  isDark = false,
+}) {
   const fullName = composeFullName(employee);
   const position = employee.position_title || "Албан тушаал тодорхойгүй";
   const status = employee.employment_status || "Статус тодорхойгүй";
@@ -453,6 +583,17 @@ function EmployeeCard({ employee, onEdit, onDelete, onView, isDeleting }) {
   const email = formatContact(employee.email);
   const initials = buildInitials(employee);
   const avatarColors = selectAvatarColors(employee);
+  const hasCv = Boolean(employee.cv_url);
+  const startDateLabel = (() => {
+    if (!employee.start_date) {
+      return "Огноо байхгүй";
+    }
+    const parsed = new Date(employee.start_date);
+    if (Number.isNaN(parsed.getTime())) {
+      return "Огноо байхгүй";
+    }
+    return parsed.toLocaleDateString("mn-MN");
+  })();
 
   const handleView = () => {
     onView?.(employee);
@@ -467,33 +608,133 @@ function EmployeeCard({ employee, onEdit, onDelete, onView, isDeleting }) {
 
   return (
     <article
-      className="flex flex-col gap-4 rounded-[30px] border border-slate-300 bg-white p-6 cursor-pointer shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+      className={`group relative flex flex-col gap-4 overflow-hidden rounded-3xl border p-6 text-slate-700 shadow-[0_24px_60px_rgba(15,23,42,0.08)] transition hover:-translate-y-1.5 focus-visible:outline-none focus-visible:ring-2 ${
+        isDark
+          ? "border-slate-800 bg-slate-900/80 text-slate-100 hover:border-slate-600 hover:shadow-[0_32px_90px_rgba(15,23,42,0.45)] focus-visible:ring-slate-700"
+          : "border-slate-200/80 bg-white/90 hover:border-sky-200 hover:shadow-[0_32px_90px_rgba(12,74,110,0.22)] focus-visible:ring-sky-200"
+      }`}
       onClick={handleView}
       onKeyDown={handleCardKeyDown}
       role="button"
       tabIndex={0}
       aria-label={`${fullName} дэлгэрэнгүй`}
     >
-      <div className="flex items-start gap-4 ">
+      <span
+        className={`absolute inset-x-0 top-0 h-1.5 transition-transform group-hover:scale-x-105 ${
+          isDark ? "bg-slate-600" : "bg-[#191e21]"
+        }`}
+        aria-hidden="true"
+      ></span>
+      <div className="flex items-start gap-4">
         <span
-          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-lg font-semibold uppercase"
+          className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-lg font-semibold uppercase shadow-[0_12px_30px_rgba(15,23,42,0.18)] ring-4 ${
+            isDark ? "ring-slate-800" : "ring-white"
+          }`}
           style={{ backgroundColor: avatarColors.bg, color: avatarColors.fg }}
         >
           {initials}
         </span>
-        <div className="flex flex-1 flex-col gap-1 text-slate-700">
-          <p className="text-lg font-semibold text-slate-900">{fullName}</p>
-          <p className="text-sm text-slate-600">{position}</p>
-          <p className="text-sm font-medium text-sky-600">{status}</p>
+        <div className="flex flex-1 flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <p
+              className={`text-lg font-semibold ${
+                isDark ? "text-white" : "text-slate-900"
+              }`}
+            >
+              {fullName}
+            </p>
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
+                isDark
+                  ? "bg-slate-800 text-slate-100"
+                  : "bg-sky-50 text-sky-700"
+              }`}
+            >
+              {status}
+            </span>
+            {hasCv ? (
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${
+                  isDark
+                    ? "bg-emerald-900/30 text-emerald-200"
+                    : "bg-emerald-50 text-emerald-700"
+                }`}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  className="h-3.5 w-3.5"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M6 10l2.5 2.5L14 7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M4 4h12v12H4z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                CV файл
+              </span>
+            ) : null}
+          </div>
+          <p
+            className={`text-sm font-medium ${
+              isDark ? "text-slate-300" : "text-slate-600"
+            }`}
+          >
+            {position}
+          </p>
+          <div
+            className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-wide ${
+              isDark ? "text-slate-500" : "text-slate-400"
+            }`}
+          >
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] ${
+                isDark
+                  ? "bg-slate-800 text-slate-200"
+                  : "bg-slate-100 text-slate-600"
+              }`}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="h-3.5 w-3.5"
+                aria-hidden="true"
+              >
+                <path
+                  d="M10 3.5V10l3 2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle cx="10" cy="10" r="7" />
+              </svg>
+              {startDateLabel}
+            </span>
+          </div>
         </div>
-        <div className="flex flex-wrap items-start justify-end gap-2">
+        <div className="flex flex-col items-end gap-2">
           <button
             type="button"
             onClick={(event) => {
               event.stopPropagation();
               onEdit?.(employee);
             }}
-            className="inline-flex w-full items-center justify-center rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-sky-300 hover:text-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-100 sm:w-auto"
+            className={`inline-flex items-center justify-center rounded-full border px-4 py-2 text-xs font-semibold transition focus:outline-none focus:ring-2 ${
+              isDark
+                ? "border-slate-700 text-slate-200 hover:border-slate-500 hover:text-white focus:ring-slate-700"
+                : "border-slate-200 text-slate-700 hover:border-sky-300 hover:text-sky-700 focus:ring-sky-100"
+            }`}
             title="Мэдээлэл засах"
           >
             Засах
@@ -504,7 +745,11 @@ function EmployeeCard({ employee, onEdit, onDelete, onView, isDeleting }) {
               event.stopPropagation();
               onDelete?.(employee);
             }}
-            className="inline-flex w-full items-center justify-center rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 transition hover:border-red-300 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 sm:w-auto"
+            className={`inline-flex items-center justify-center rounded-full border px-4 py-2 text-xs font-semibold transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed ${
+              isDark
+                ? "border-red-900 text-red-300 hover:border-red-700 hover:text-red-200 focus:ring-red-900 disabled:border-slate-800 disabled:text-slate-600"
+                : "border-red-200 text-red-600 hover:border-red-300 hover:text-red-700 focus:ring-red-100 disabled:border-slate-200 disabled:text-slate-400"
+            }`}
             title="Ажилтныг устгах"
             disabled={isDeleting}
           >
@@ -512,15 +757,121 @@ function EmployeeCard({ employee, onEdit, onDelete, onView, isDeleting }) {
           </button>
         </div>
       </div>
-      <div className="grid gap-2 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
-        <div className="flex items-center justify-between">
-          <span className="font-medium text-slate-500">Утас</span>
-          <span className="font-semibold text-slate-800">{phone}</span>
+      <div
+        className={`grid gap-3 rounded-2xl border p-4 text-sm ${
+          isDark
+            ? "border-slate-800 bg-slate-900/60 text-slate-200"
+            : "border-slate-100 bg-slate-50/70 text-slate-600"
+        }`}
+      >
+        <div
+          className={`flex items-center justify-between text-xs font-semibold uppercase tracking-wide ${
+            isDark ? "text-slate-400" : "text-slate-500"
+          }`}
+        >
+          <span className="inline-flex items-center gap-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="h-4 w-4"
+              aria-hidden="true"
+            >
+              <path
+                d="M4 4h12v12H4z"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path d="M4 8h12M8 4v12" strokeLinecap="round" />
+            </svg>
+            Холбогдох
+          </span>
+          {hasCv ? (
+            <span
+              className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                isDark
+                  ? "bg-emerald-900/30 text-emerald-200"
+                  : "bg-emerald-100 text-emerald-700"
+              }`}
+            >
+              CV хавсаргасан
+            </span>
+          ) : (
+            <span
+              className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                isDark
+                  ? "bg-slate-800 text-slate-300"
+                  : "bg-slate-200 text-slate-600"
+              }`}
+            >
+              CV байхгүй
+            </span>
+          )}
         </div>
         <div className="flex items-center justify-between">
-          <span className="font-medium text-slate-500">Имэйл</span>
-          <span className="truncate font-semibold text-slate-800" title={email}>
+          <span
+            className={`inline-flex items-center gap-2 font-medium ${
+              isDark ? "text-slate-400" : "text-slate-500"
+            }`}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              className="h-4 w-4"
+              aria-hidden="true"
+            >
+              <rect x="3.5" y="5" width="13" height="10" rx="1.5" />
+              <path
+                d="M4.5 6l5.5 4 5.5-4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Имэйл
+          </span>
+          <span
+            className={`truncate font-semibold ${
+              isDark ? "text-slate-100" : "text-slate-900"
+            }`}
+            title={email}
+          >
             {email}
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span
+            className={`inline-flex items-center gap-2 font-medium ${
+              isDark ? "text-slate-400" : "text-slate-500"
+            }`}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              className="h-4 w-4"
+              aria-hidden="true"
+            >
+              <path
+                d="M6.5 3.5h2l1.2 3-1.7 1.2a8.5 8.5 0 003.8 3.8l1.2-1.7 3 1.2v2a1.5 1.5 0 01-1.5 1.5C9.2 14.5 5.5 10.8 5.5 6a1.5 1.5 0 011-1.5z"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Утас
+          </span>
+          <span
+            className={`font-semibold ${
+              isDark ? "text-slate-100" : "text-slate-900"
+            }`}
+          >
+            {phone}
           </span>
         </div>
       </div>
@@ -530,8 +881,8 @@ function EmployeeCard({ employee, onEdit, onDelete, onView, isDeleting }) {
 
 function EmployeeFormModal({
   open,
-  values,
-  errors,
+  values = FORM_INITIAL_STATE,
+  errors = {},
   onClose,
   onSubmit,
   onChange,
@@ -540,29 +891,74 @@ function EmployeeFormModal({
   statusOptions,
   departmentOptions,
   submitError,
+  isDark = false,
 }) {
   if (!open) {
     return null;
   }
 
+  // Guard against undefined props to keep the form stable.
+  const safeValues = values || FORM_INITIAL_STATE;
+  const safeErrors = errors || {};
+
+  const hasExistingCv = Boolean(safeValues.cvUrl);
+  const selectedCvLabel = safeValues.cvFile
+    ? safeValues.cvFile.name
+    : hasExistingCv
+    ? "Одоогийн CV"
+    : "CV сонгогдоогүй";
+  const isBusy = Boolean(isSubmitting);
+
+  const handleClearCv = () => {
+    onChange("cvFile", null);
+    onChange("cvUrl", "");
+  };
+
   const handleFieldChange = (field) => (event) => {
+    if (field === "cvFile") {
+      const file = event.target.files?.[0] ?? null;
+      if (!file) {
+        return;
+      }
+      onChange("cvUrl", "");
+      onChange(field, file);
+      return;
+    }
     onChange(field, event.target.value);
   };
 
   const renderError = (field) =>
-    errors[field] ? (
-      <p className="text-xs text-red-600">{errors[field]}</p>
+    safeErrors[field] ? (
+      <p className="text-xs text-red-600">{safeErrors[field]}</p>
     ) : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4 py-10">
-      <div className="w-full max-w-3xl rounded-[30px] bg-white p-6 shadow-2xl">
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center px-4 py-10 ${
+        isDark ? "bg-slate-950/70" : "bg-slate-900/40"
+      }`}
+    >
+      <div
+        className={`w-full max-w-3xl rounded-[30px] p-6 shadow-2xl transition-colors ${
+          isDark
+            ? "border border-slate-800 bg-slate-900 text-slate-100 shadow-slate-900/50"
+            : "bg-white text-slate-800"
+        }`}
+      >
         <header className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-xl font-semibold text-slate-900">
+            <h2
+              className={`text-xl font-semibold ${
+                isDark ? "text-white" : "text-slate-900"
+              }`}
+            >
               {isEdit ? "Ажилтны мэдээлэл засах" : "Шинэ ажилтан нэмэх"}
             </h2>
-            <p className="text-sm text-slate-500">
+            <p
+              className={`text-sm ${
+                isDark ? "text-slate-400" : "text-slate-500"
+              }`}
+            >
               {isEdit
                 ? "Ажилтны мэдээллийг шинэчлэн хадгална."
                 : "Шинэ ажилтны үндсэн мэдээллийг оруулна уу."}
@@ -571,7 +967,11 @@ function EmployeeFormModal({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-200"
+            className={`inline-flex h-10 w-10 items-center justify-center rounded-full border text-slate-500 transition focus:outline-none focus:ring-2 ${
+              isDark
+                ? "border-slate-700 hover:border-slate-500 hover:text-white focus:ring-slate-700"
+                : "border-slate-200 hover:border-slate-300 hover:text-slate-700 focus:ring-slate-200"
+            }`}
             aria-label="Цонх хаах"
           >
             ×
@@ -579,169 +979,352 @@ function EmployeeFormModal({
         </header>
 
         {submitError ? (
-          <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div
+            className={`mb-4 rounded-2xl border px-4 py-3 text-sm ${
+              isDark
+                ? "border-red-900/60 bg-red-950/40 text-red-200"
+                : "border-red-200 bg-red-50 text-red-700"
+            }`}
+          >
             {submitError}
           </div>
         ) : null}
 
-        <form onSubmit={onSubmit} className="space-y-5">
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="flex flex-col gap-2 text-sm font-medium text-slate-600">
-              <span>Ажилтны код *</span>
-              <input
-                type="text"
-                value={values.employeeCode}
-                onChange={handleFieldChange("employeeCode")}
-                className="h-11 rounded-2xl border border-slate-300 px-4 text-sm font-normal text-slate-700 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
-                required
-              />
-              {renderError("employeeCode")}
-            </label>
-            <label className="flex flex-col gap-2 text-sm font-medium text-slate-600">
-              <span>Имэйл *</span>
-              <input
-                type="email"
-                value={values.email}
-                onChange={handleFieldChange("email")}
-                className="h-11 rounded-2xl border border-slate-300 px-4 text-sm font-normal text-slate-700 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
-                required
-              />
-              {renderError("email")}
-            </label>
-            <label className="flex flex-col gap-2 text-sm font-medium text-slate-600">
-              <span>Овог *</span>
-              <input
-                type="text"
-                value={values.lastName}
-                onChange={handleFieldChange("lastName")}
-                className="h-11 rounded-2xl border border-slate-300 px-4 text-sm font-normal text-slate-700 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
-                required
-              />
-              {renderError("lastName")}
-            </label>
-            <label className="flex flex-col gap-2 text-sm font-medium text-slate-600">
-              <span>Нэр *</span>
-              <input
-                type="text"
-                value={values.firstName}
-                onChange={handleFieldChange("firstName")}
-                className="h-11 rounded-2xl border border-slate-300 px-4 text-sm font-normal text-slate-700 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
-                required
-              />
-              {renderError("firstName")}
-            </label>
-            <label className="flex flex-col gap-2 text-sm font-medium text-slate-600">
-              <span>Албан тушаал *</span>
-              <input
-                list="employee-position-options"
-                value={values.positionTitle}
-                onChange={handleFieldChange("positionTitle")}
-                className="h-11 rounded-2xl border border-slate-300 px-4 text-sm font-normal text-slate-700 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
-                required
-              />
-              <datalist id="employee-position-options">
-                {departmentOptions.map((option) => (
-                  <option key={option} value={option} />
-                ))}
-              </datalist>
-              {renderError("positionTitle")}
-            </label>
-            <label className="flex flex-col gap-2 text-sm font-medium text-slate-600">
-              <span>Ажил эрхлэлт *</span>
-              <input
-                list="employee-status-options"
-                value={values.employmentStatus}
-                onChange={handleFieldChange("employmentStatus")}
-                className="h-11 rounded-2xl border border-slate-300 px-4 text-sm font-normal text-slate-700 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
-                required
-              />
-              <datalist id="employee-status-options">
-                {statusOptions.map((option) => (
-                  <option key={option} value={option} />
-                ))}
-              </datalist>
-              {renderError("employmentStatus")}
-            </label>
-            <label className="flex flex-col gap-2 text-sm font-medium text-slate-600">
-              <span>Утас</span>
-              <input
-                type="tel"
-                value={values.phoneNumber}
-                onChange={handleFieldChange("phoneNumber")}
-                className="h-11 rounded-2xl border border-slate-300 px-4 text-sm font-normal text-slate-700 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
-              />
-              {renderError("phoneNumber")}
-            </label>
-            <label className="flex flex-col gap-2 text-sm font-medium text-slate-600">
-              <span>Нас</span>
-              <input
-                type="number"
-                min="0"
-                value={values.age}
-                onChange={handleFieldChange("age")}
-                className="h-11 rounded-2xl border border-slate-300 px-4 text-sm font-normal text-slate-700 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
-              />
-              {renderError("age")}
-            </label>
-            <label className="flex flex-col gap-2 text-sm font-medium text-slate-600">
-              <span>Хүйс</span>
-              <select
-                value={values.gender}
-                onChange={handleFieldChange("gender")}
-                className="h-11 rounded-2xl border border-slate-300 px-4 text-sm font-normal text-slate-700 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
+        <form onSubmit={onSubmit}>
+          <fieldset className="space-y-5" disabled={isBusy}>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label
+                className={`flex flex-col gap-2 text-sm font-medium ${
+                  isDark ? "text-slate-200" : "text-slate-600"
+                }`}
               >
-                <option value="">Сонгох</option>
-                {GENDER_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              {renderError("gender")}
-            </label>
-            <label className="flex flex-col gap-2 text-sm font-medium text-slate-600">
-              <span>Ажилд орсон он сар</span>
-              <input
-                type="date"
-                value={values.startDate}
-                onChange={handleFieldChange("startDate")}
-                className="h-11 rounded-2xl border border-slate-300 px-4 text-sm font-normal text-slate-700 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
-              />
-              {renderError("startDate")}
-            </label>
-            <label className="flex flex-col gap-2 text-sm font-medium text-slate-600">
-              <span>CV холбоос</span>
-              <input
-                type="url"
-                value={values.cvUrl}
-                onChange={handleFieldChange("cvUrl")}
-                className="h-11 rounded-2xl border border-slate-300 px-4 text-sm font-normal text-slate-700 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
-                placeholder="https://"
-              />
-              {renderError("cvUrl")}
-            </label>
-          </div>
+                <span>Ажилтны код *</span>
+                <input
+                  type="text"
+                  value={safeValues.employeeCode}
+                  onChange={handleFieldChange("employeeCode")}
+                  className={`h-11 rounded-2xl border px-4 text-sm font-normal shadow-sm transition focus:outline-none focus:ring-2 ${
+                    isDark
+                      ? "border-slate-700 bg-slate-900 text-slate-100 focus:border-slate-500 focus:ring-slate-700"
+                      : "border-slate-300 text-slate-700 focus:border-sky-400 focus:ring-sky-100"
+                  }`}
+                  required
+                />
+                {renderError("employeeCode")}
+              </label>
+              <label
+                className={`flex flex-col gap-2 text-sm font-medium ${
+                  isDark ? "text-slate-200" : "text-slate-600"
+                }`}
+              >
+                <span>Имэйл *</span>
+                <input
+                  type="email"
+                  value={safeValues.email}
+                  onChange={handleFieldChange("email")}
+                  className={`h-11 rounded-2xl border px-4 text-sm font-normal shadow-sm transition focus:outline-none focus:ring-2 ${
+                    isDark
+                      ? "border-slate-700 bg-slate-900 text-slate-100 focus:border-slate-500 focus:ring-slate-700"
+                      : "border-slate-300 text-slate-700 focus:border-sky-400 focus:ring-sky-100"
+                  }`}
+                  required
+                />
+                {renderError("email")}
+              </label>
+              <label
+                className={`flex flex-col gap-2 text-sm font-medium ${
+                  isDark ? "text-slate-200" : "text-slate-600"
+                }`}
+              >
+                <span>Овог *</span>
+                <input
+                  type="text"
+                  value={safeValues.lastName}
+                  onChange={handleFieldChange("lastName")}
+                  className={`h-11 rounded-2xl border px-4 text-sm font-normal shadow-sm transition focus:outline-none focus:ring-2 ${
+                    isDark
+                      ? "border-slate-700 bg-slate-900 text-slate-100 focus:border-slate-500 focus:ring-slate-700"
+                      : "border-slate-300 text-slate-700 focus:border-sky-400 focus:ring-sky-100"
+                  }`}
+                  required
+                />
+                {renderError("lastName")}
+              </label>
+              <label
+                className={`flex flex-col gap-2 text-sm font-medium ${
+                  isDark ? "text-slate-200" : "text-slate-600"
+                }`}
+              >
+                <span>Нэр *</span>
+                <input
+                  type="text"
+                  value={safeValues.firstName}
+                  onChange={handleFieldChange("firstName")}
+                  className={`h-11 rounded-2xl border px-4 text-sm font-normal shadow-sm transition focus:outline-none focus:ring-2 ${
+                    isDark
+                      ? "border-slate-700 bg-slate-900 text-slate-100 focus:border-slate-500 focus:ring-slate-700"
+                      : "border-slate-300 text-slate-700 focus:border-sky-400 focus:ring-sky-100"
+                  }`}
+                  required
+                />
+                {renderError("firstName")}
+              </label>
+              <label
+                className={`flex flex-col gap-2 text-sm font-medium ${
+                  isDark ? "text-slate-200" : "text-slate-600"
+                }`}
+              >
+                <span>Албан тушаал *</span>
+                <input
+                  list="employee-position-options"
+                  value={safeValues.positionTitle}
+                  onChange={handleFieldChange("positionTitle")}
+                  className={`h-11 rounded-2xl border px-4 text-sm font-normal shadow-sm transition focus:outline-none focus:ring-2 ${
+                    isDark
+                      ? "border-slate-700 bg-slate-900 text-slate-100 focus:border-slate-500 focus:ring-slate-700"
+                      : "border-slate-300 text-slate-700 focus:border-sky-400 focus:ring-sky-100"
+                  }`}
+                  required
+                />
+                <datalist id="employee-position-options">
+                  {departmentOptions.map((option) => (
+                    <option key={option} value={option} />
+                  ))}
+                </datalist>
+                {renderError("positionTitle")}
+              </label>
+              <label
+                className={`flex flex-col gap-2 text-sm font-medium ${
+                  isDark ? "text-slate-200" : "text-slate-600"
+                }`}
+              >
+                <span>Ажил эрхлэлт *</span>
+                <input
+                  list="employee-status-options"
+                  value={safeValues.employmentStatus}
+                  onChange={handleFieldChange("employmentStatus")}
+                  className={`h-11 rounded-2xl border px-4 text-sm font-normal shadow-sm transition focus:outline-none focus:ring-2 ${
+                    isDark
+                      ? "border-slate-700 bg-slate-900 text-slate-100 focus:border-slate-500 focus:ring-slate-700"
+                      : "border-slate-300 text-slate-700 focus:border-sky-400 focus:ring-sky-100"
+                  }`}
+                  required
+                />
+                <datalist id="employee-status-options">
+                  {statusOptions.map((option) => (
+                    <option key={option} value={option} />
+                  ))}
+                </datalist>
+                {renderError("employmentStatus")}
+              </label>
+              <label
+                className={`flex flex-col gap-2 text-sm font-medium ${
+                  isDark ? "text-slate-200" : "text-slate-600"
+                }`}
+              >
+                <span>Утас</span>
+                <input
+                  type="tel"
+                  value={safeValues.phoneNumber}
+                  onChange={handleFieldChange("phoneNumber")}
+                  className={`h-11 rounded-2xl border px-4 text-sm font-normal shadow-sm transition focus:outline-none focus:ring-2 ${
+                    isDark
+                      ? "border-slate-700 bg-slate-900 text-slate-100 focus:border-slate-500 focus:ring-slate-700"
+                      : "border-slate-300 text-slate-700 focus:border-sky-400 focus:ring-sky-100"
+                  }`}
+                />
+                {renderError("phoneNumber")}
+              </label>
+              <label
+                className={`flex flex-col gap-2 text-sm font-medium ${
+                  isDark ? "text-slate-200" : "text-slate-600"
+                }`}
+              >
+                <span>Нас</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={safeValues.age}
+                  onChange={handleFieldChange("age")}
+                  className={`h-11 rounded-2xl border px-4 text-sm font-normal shadow-sm transition focus:outline-none focus:ring-2 ${
+                    isDark
+                      ? "border-slate-700 bg-slate-900 text-slate-100 focus:border-slate-500 focus:ring-slate-700"
+                      : "border-slate-300 text-slate-700 focus:border-sky-400 focus:ring-sky-100"
+                  }`}
+                />
+                {renderError("age")}
+              </label>
+              <label
+                className={`flex flex-col gap-2 text-sm font-medium ${
+                  isDark ? "text-slate-200" : "text-slate-600"
+                }`}
+              >
+                <span>Хүйс</span>
+                <select
+                  value={safeValues.gender}
+                  onChange={handleFieldChange("gender")}
+                  className={`h-11 rounded-2xl border px-4 text-sm font-normal shadow-sm transition focus:outline-none focus:ring-2 ${
+                    isDark
+                      ? "border-slate-700 bg-slate-900 text-slate-100 focus:border-slate-500 focus:ring-slate-700"
+                      : "border-slate-300 text-slate-700 focus:border-sky-400 focus:ring-sky-100"
+                  }`}
+                >
+                  <option value="">Сонгох</option>
+                  {GENDER_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                {renderError("gender")}
+              </label>
+              <label
+                className={`flex flex-col gap-2 text-sm font-medium ${
+                  isDark ? "text-slate-200" : "text-slate-600"
+                }`}
+              >
+                <span>Ажилд орсон он сар</span>
+                <input
+                  type="date"
+                  value={safeValues.startDate}
+                  onChange={handleFieldChange("startDate")}
+                  className={`h-11 rounded-2xl border px-4 text-sm font-normal shadow-sm transition focus:outline-none focus:ring-2 ${
+                    isDark
+                      ? "border-slate-700 bg-slate-900 text-slate-100 focus:border-slate-500 focus:ring-slate-700"
+                      : "border-slate-300 text-slate-700 focus:border-sky-400 focus:ring-sky-100"
+                  }`}
+                />
+                {renderError("startDate")}
+              </label>
+              <label
+                className={`flex flex-col gap-2 text-sm font-medium ${
+                  isDark ? "text-slate-200" : "text-slate-600"
+                }`}
+              >
+                <span>CV (PDF)</span>
+                <div
+                  className={`flex flex-col gap-3 rounded-2xl border p-4 shadow-sm ${
+                    isDark
+                      ? "border-slate-700 bg-slate-900"
+                      : "border-slate-200 bg-slate-50"
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label
+                      className={`relative inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold shadow-sm transition focus-within:ring-2 ${
+                        isDark
+                          ? "border-slate-600 bg-slate-800 text-slate-100 hover:border-slate-400 focus-within:ring-slate-700"
+                          : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 focus-within:ring-sky-100"
+                      }`}
+                    >
+                      <input
+                        type="file"
+                        accept="application/pdf"
+                        onChange={handleFieldChange("cvFile")}
+                        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                        aria-label="CV файл сонгох"
+                      />
+                      Файл сонгох
+                    </label>
 
-          <div className="flex flex-wrap items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex h-11 items-center justify-center rounded-full border border-slate-200 px-5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
-            >
-              Цуцлах
-            </button>
-            <button
-              type="submit"
-              className="inline-flex h-11 items-center justify-center rounded-full border border-sky-500 bg-sky-500 px-6 text-sm font-semibold text-white transition hover:border-sky-600 hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:cursor-not-allowed disabled:border-sky-300 disabled:bg-sky-300"
-              disabled={isSubmitting}
-            >
-              {isSubmitting
-                ? "Хадгалж байна..."
-                : isEdit
-                ? "Шинэчлэх"
-                : "Хадгалах"}
-            </button>
-          </div>
+                    {safeValues.cvFile || hasExistingCv ? (
+                      <span
+                        className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold shadow-sm ${
+                          isDark
+                            ? "border border-slate-700 bg-slate-800 text-slate-100"
+                            : "bg-white text-slate-700"
+                        }`}
+                      >
+                        <span
+                          className="truncate max-w-40"
+                          title={selectedCvLabel}
+                        >
+                          {selectedCvLabel}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleClearCv}
+                          className={`rounded-full px-2 py-1 text-[11px] font-semibold transition ${
+                            isDark
+                              ? "bg-slate-700 text-slate-100 hover:bg-slate-600"
+                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          }`}
+                        >
+                          Устгах
+                        </button>
+                      </span>
+                    ) : (
+                      <span
+                        className={`text-xs font-medium ${
+                          isDark ? "text-slate-400" : "text-slate-500"
+                        }`}
+                      >
+                        CV сонгоогүй байна
+                      </span>
+                    )}
+                  </div>
+
+                  <div
+                    className={`flex flex-wrap items-center gap-3 text-[12px] ${
+                      isDark ? "text-slate-400" : "text-slate-500"
+                    }`}
+                  >
+                    <span
+                      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 font-semibold shadow-sm ${
+                        isDark
+                          ? "border border-slate-700 bg-slate-800 text-slate-200"
+                          : "bg-white text-slate-600"
+                      }`}
+                    >
+                      PDF, 10MB хүртэл
+                    </span>
+                    {isEdit && resolveFileUrl(safeValues.cvUrl) ? (
+                      <a
+                        href={resolveFileUrl(safeValues.cvUrl)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`text-xs font-semibold underline ${
+                          isDark ? "text-sky-300" : "text-sky-700"
+                        }`}
+                      >
+                        Одоогийн CV нээх
+                      </a>
+                    ) : null}
+                  </div>
+
+                  {renderError("cvUrl")}
+                </div>
+              </label>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className={`inline-flex h-11 items-center justify-center rounded-full border px-5 text-sm font-semibold transition focus:outline-none focus:ring-2 ${
+                  isDark
+                    ? "border-slate-700 text-slate-200 hover:border-slate-500 hover:text-white focus:ring-slate-700"
+                    : "border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-800 focus:ring-slate-200"
+                }`}
+              >
+                Цуцлах
+              </button>
+              <button
+                type="submit"
+                className={`inline-flex h-11 items-center justify-center rounded-full px-6 text-sm font-semibold shadow-lg transition hover:-translate-y-px focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-70 ${
+                  isDark
+                    ? "bg-slate-200 text-slate-900 shadow-slate-900/40 focus:ring-slate-700 hover:shadow-slate-800/60"
+                    : "bg-[#191e21] text-white shadow-sky-900/25 focus:ring-sky-200"
+                }`}
+              >
+                {isSubmitting
+                  ? "Хадгалж байна..."
+                  : isEdit
+                  ? "Мэдээлэл шинэчлэх"
+                  : "Хадгалах"}
+              </button>
+            </div>
+          </fieldset>
         </form>
       </div>
     </div>
@@ -772,6 +1355,41 @@ function Employees() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof document === "undefined") {
+      return false;
+    }
+    return document.body.classList.contains("theme-dark");
+  });
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return undefined;
+    }
+    const body = document.body;
+    const syncTheme = () => setIsDark(body.classList.contains("theme-dark"));
+    syncTheme();
+
+    const observer = new MutationObserver(syncTheme);
+    observer.observe(body, { attributes: true, attributeFilter: ["class"] });
+
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleMedia = () => syncTheme();
+    media.addEventListener("change", handleMedia);
+
+    const handleStorage = (event) => {
+      if (event.key === "theme") {
+        syncTheme();
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      observer.disconnect();
+      media.removeEventListener("change", handleMedia);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
 
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -792,41 +1410,36 @@ function Employees() {
           pageSize: API_PAGE_SIZE,
           sort: sortField,
           order: sortDirection,
-          search: debouncedSearch || undefined,
         };
 
         if (selectedStatus) {
           baseParams.status = selectedStatus;
         }
+
         if (selectedDepartment) {
-          baseParams.position = selectedDepartment;
+          baseParams.department = selectedDepartment;
         }
 
-        let page = 1;
-        let accumulated = [];
-
-        while (true) {
-          const response = await apiClient.get("/employees", {
-            params: { ...baseParams, page },
-            signal: controller.signal,
-          });
-          console.log("Fetched page", page, response.data);
-          if (!isMounted) {
-            return;
-          }
-
-          const data = response.data?.data ?? [];
-          accumulated = accumulated.concat(data);
-
-          if (data.length < API_PAGE_SIZE) {
-            break;
-          }
-
-          page += 1;
+        if (debouncedSearch) {
+          baseParams.search = debouncedSearch;
         }
 
+        const response = await apiClient.get("/employees", {
+          params: baseParams,
+          signal: controller.signal,
+        });
+
+        if (!isMounted) {
+          return;
+        }
+
+        const rawEmployees =
+          response?.data?.employees ??
+          response?.data?.data ??
+          response?.data ??
+          [];
+        const accumulated = Array.isArray(rawEmployees) ? rawEmployees : [];
         setEmployees(accumulated);
-        setError(null);
 
         setStatusOptions((prev) => {
           const set = new Set(prev);
@@ -902,6 +1515,14 @@ function Employees() {
     () => statusOptions.map((option) => ({ value: option, label: option })),
     [statusOptions]
   );
+
+  const totalEmployees = employees.length;
+  const cvAttachedCount = useMemo(
+    () => employees.filter((employee) => Boolean(employee.cv_url)).length,
+    [employees]
+  );
+  const roleCount = departmentOptions.length;
+  const statusCount = statusOptions.length;
 
   const totalFiltered = filteredEmployees.length;
   const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
@@ -1009,23 +1630,22 @@ function Employees() {
     });
   };
 
-  const validateForm = (valuesToValidate) => {
+  const validateForm = (valuesToValidate = FORM_INITIAL_STATE) => {
     const nextErrors = {};
     Object.entries(REQUIRED_FIELDS).forEach(([field, label]) => {
-      if (!valuesToValidate[field]?.trim()) {
+      if (!valuesToValidate?.[field]?.trim?.()) {
         nextErrors[field] = `${label} талбарыг оруулна уу.`;
       }
     });
 
-    if (
-      valuesToValidate.email &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valuesToValidate.email.trim())
-    ) {
+    const emailValue = valuesToValidate?.email?.trim?.();
+    if (emailValue && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) {
       nextErrors.email = "Зөв имэйл хаяг оруулна уу.";
     }
 
-    if (valuesToValidate.age) {
-      const parsedAge = Number(valuesToValidate.age);
+    const ageValue = valuesToValidate?.age;
+    if (ageValue !== undefined && ageValue !== null && ageValue !== "") {
+      const parsedAge = Number(ageValue);
       if (!Number.isFinite(parsedAge) || parsedAge < 0) {
         nextErrors.age = "Насны утга буруу байна.";
       }
@@ -1036,21 +1656,54 @@ function Employees() {
 
   const handleSubmitForm = async (event) => {
     event.preventDefault();
-    const validationErrors = validateForm(formValues);
+    const currentValues = formValues || FORM_INITIAL_STATE;
+    const validationErrors = validateForm(currentValues);
     if (Object.keys(validationErrors).length > 0) {
       setFormErrors(validationErrors);
       return;
+    }
+
+    if (currentValues.cvFile) {
+      if (currentValues.cvFile.type !== "application/pdf") {
+        setSubmitError("CV файл PDF өргөтгөлтэй байх шаардлагатай.");
+        return;
+      }
+      if (currentValues.cvFile.size > MAX_CV_SIZE_BYTES) {
+        setSubmitError("CV файл 10MB-аас бага байх ёстой.");
+        return;
+      }
     }
 
     setIsSubmitting(true);
     setSubmitError(null);
 
     try {
-      const payload = buildEmployeePayload(formValues);
+      const payload = buildEmployeePayload(currentValues);
+      const formData = new FormData();
+      formData.append("employeeCode", payload.employeeCode);
+      formData.append("firstName", payload.firstName);
+      formData.append("lastName", payload.lastName);
+      formData.append("email", payload.email);
+      formData.append("phoneNumber", payload.phoneNumber);
+      formData.append("positionTitle", payload.positionTitle);
+      formData.append("employmentStatus", payload.employmentStatus);
+      formData.append("gender", payload.gender);
+      if (payload.age !== null) {
+        formData.append("age", payload.age);
+      }
+      if (payload.startDate) {
+        formData.append("startDate", payload.startDate);
+      }
+      if (currentValues.cvFile) {
+        formData.append("cv", currentValues.cvFile);
+      } else if (payload.cvUrl) {
+        formData.append("cvUrl", payload.cvUrl);
+      }
+
       if (editingEmployee) {
-        await apiClient.patch(`/employees/${editingEmployee.id}`, payload);
+        await apiClient.patch(`/employees/${editingEmployee.id}`, formData);
       } else {
-        await apiClient.post("/employees", payload);
+        await apiClient.post("/employees", formData);
       }
       closeForm();
       triggerRefresh();
@@ -1092,14 +1745,30 @@ function Employees() {
   };
 
   return (
-    <section className="px-6 pb-12 mx-6 bg-white shadow-lg rounded-[30px]">
+    <section
+      className={`mx-6 px-6 pb-12 rounded-[30px] shadow-lg transition-colors ${
+        isDark
+          ? "border border-slate-800 bg-slate-900/80 text-slate-100 shadow-slate-900/40"
+          : "bg-white text-slate-700"
+      }`}
+    >
       {error && (
-        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div
+          className={`mb-4 rounded-2xl border px-4 py-3 text-sm ${
+            isDark
+              ? "border-red-900/60 bg-red-950/40 text-red-200"
+              : "border-red-200 bg-red-50 text-red-700"
+          }`}
+        >
           {error}
         </div>
       )}
 
-      <div className="mb-6 space-y-5 rounded-[30px]  bg-white p-5">
+      <div
+        className={`mb-6 space-y-5 rounded-[30px] p-5 transition-colors ${
+          isDark ? "border border-slate-800 bg-slate-900/70" : "bg-white"
+        }`}
+      >
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <FilterSelect
             label="Албан тушаал"
@@ -1110,6 +1779,7 @@ function Employees() {
               setCurrentPage(1);
             }}
             options={departmentSelectOptions}
+            isDark={isDark}
           />
           <FilterSelect
             label="Ажил эрхлэлт"
@@ -1120,6 +1790,7 @@ function Employees() {
               setCurrentPage(1);
             }}
             options={statusSelectOptions}
+            isDark={isDark}
           />
           <FilterSelect
             label="Эрэмбэлэх талбар"
@@ -1134,6 +1805,7 @@ function Employees() {
               label: option.label,
             }))}
             allowEmpty={false}
+            isDark={isDark}
           />
           <SortDirectionToggle
             value={sortDirection}
@@ -1141,6 +1813,7 @@ function Employees() {
               setSortDirection(direction);
               setCurrentPage(1);
             }}
+            isDark={isDark}
           />
         </div>
 
@@ -1151,6 +1824,7 @@ function Employees() {
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               className="w-full min-w-60 max-w-90"
+              isDark={isDark}
             />
           </div>
 
@@ -1158,7 +1832,11 @@ function Employees() {
             <button
               type="button"
               onClick={handleResetFilters}
-              className="inline-flex h-11 items-center gap-2 rounded-2xl border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-sky-400 hover:text-sky-600 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
+              className={`inline-flex h-11 items-center gap-2 rounded-2xl px-5 text-sm font-semibold shadow-sm transition focus:outline-none focus:ring-2 ${
+                isDark
+                  ? "border border-slate-700 bg-slate-800 text-slate-200 hover:border-slate-500 hover:text-white focus:border-slate-500 focus:ring-slate-700"
+                  : "border border-slate-300 bg-white text-slate-700 hover:border-sky-400 hover:text-sky-600 focus:border-sky-400 focus:ring-sky-100"
+              }`}
               title="Шүүлтүүрийг дахин тохируулах"
               aria-pressed={hasActiveFilters}
             >
@@ -1189,7 +1867,11 @@ function Employees() {
               label="Ажилтан нэмэх"
               onClick={openCreateForm}
               ariaLabel="Ажилтан нэмэх"
-              className="h-11 px-5 border-sky-500 bg-sky-500 text-black transition hover:border-sky-600 hover:bg-[#191e21] "
+              className={`h-11 px-5 transition ${
+                isDark
+                  ? "border border-slate-500 bg-slate-100 text-slate-900 hover:border-slate-300 hover:bg-white"
+                  : "border-sky-500 bg-sky-500 text-black hover:border-sky-600 hover:bg-[#191e21]"
+              }`}
             />
           </div>
         </div>
@@ -1200,12 +1882,22 @@ function Employees() {
           {Array.from({ length: pageSize }).map((_, index) => (
             <div
               key={index}
-              className="h-60 animate-pulse rounded-[30px] border border-slate-200/70 bg-white shadow-[0_16px_30px_rgba(15,80,110,0.06)]"
+              className={`h-60 animate-pulse rounded-[30px] border shadow-[0_16px_30px_rgba(15,80,110,0.06)] ${
+                isDark
+                  ? "border-slate-800 bg-slate-900/80"
+                  : "border-slate-200/70 bg-white"
+              }`}
             />
           ))}
         </div>
       ) : totalFiltered === 0 ? (
-        <div className="bg-white/70 p-10 text-center text-slate-500">
+        <div
+          className={`p-10 text-center ${
+            isDark
+              ? "rounded-3xl border border-slate-800 bg-slate-900/70 text-slate-300"
+              : "rounded-3xl bg-white/70 text-slate-500"
+          }`}
+        >
           Ажилчдын мэдээлэл олдсонгүй.
         </div>
       ) : (
@@ -1218,6 +1910,7 @@ function Employees() {
               onDelete={handleDeleteEmployee}
               onView={openProfileModal}
               isDeleting={deletingId === employee.id}
+              isDark={isDark}
             />
           ))}
         </div>
@@ -1234,6 +1927,7 @@ function Employees() {
             setPageSize(size);
             setCurrentPage(1);
           }}
+          isDark={isDark}
         />
       ) : null}
 
@@ -1249,6 +1943,7 @@ function Employees() {
         statusOptions={statusOptions}
         departmentOptions={departmentOptions}
         submitError={submitError}
+        isDark={isDark}
       />
       <ProfileModal
         isOpen={isProfileOpen}
@@ -1262,7 +1957,13 @@ function Employees() {
         }}
       />
       {totalFiltered > 0 ? (
-        <span className="inline-flex h-10 items-center rounded-full bg-slate-100 px-4 text-sm font-semibold text-slate-600 mt-5">
+        <span
+          className={`mt-5 inline-flex h-10 items-center rounded-full px-4 text-sm font-semibold ${
+            isDark
+              ? "border border-slate-700 bg-slate-800 text-slate-200"
+              : "bg-slate-100 text-slate-600"
+          }`}
+        >
           {pageStart} - {pageEnd} / {totalFiltered}
         </span>
       ) : null}

@@ -1,11 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
 import apiClient from "../utils/apiClient";
+import Loader from "./loader";
 
 const TABS = [
   { id: "basic", label: "Үндсэн" },
   { id: "personal", label: "Хувийн мэдээлэл" },
   { id: "documents", label: "Бичиг баримт" },
 ];
+
+const resolveFileUrl = (url) => {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+
+  const apiBase = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
+  const backendBase = apiBase.replace(/\/api\/?$/, "");
+
+  const normalized = url.startsWith("/")
+    ? url
+    : url.startsWith("uploads")
+    ? `/${url}`
+    : `/uploads/${url}`;
+
+  return `${backendBase}${normalized}`;
+};
 
 const resolveStatusAccent = (status) => {
   const normalized = (status || "").toLowerCase();
@@ -282,10 +299,7 @@ function ProfileModal({ isOpen, onClose, employeeId, onEdit }) {
 
           <section className="rounded-2xl border border-slate-100 bg-white px-5 py-6 shadow-sm">
             {isLoading ? (
-              <div className="flex flex-col items-center gap-3 py-10 text-slate-400">
-                <span className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500"></span>
-                <p className="text-sm font-medium">Ачаалж байна...</p>
-              </div>
+              <Loader />
             ) : error ? (
               <div className="flex flex-col items-center gap-3 py-10 text-center text-sm text-rose-500">
                 <p>{error}</p>
@@ -439,9 +453,9 @@ function ProfileModal({ isOpen, onClose, employeeId, onEdit }) {
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                         CV холбоос
                       </p>
-                      {employee.cv_url ? (
+                      {resolveFileUrl(employee.cv_url) ? (
                         <a
-                          href={employee.cv_url}
+                          href={resolveFileUrl(employee.cv_url)}
                           target="_blank"
                           rel="noreferrer"
                           className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-sky-600 transition hover:text-sky-700"

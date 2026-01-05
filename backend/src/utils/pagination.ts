@@ -14,7 +14,8 @@ export const parsePagination = (query: {
   const rawPageSize = toNumber(query.pageSize);
 
   const page = Math.max(rawPage || 1, 1);
-  const pageSize = Math.min(Math.max(rawPageSize || 25, 1), 100);
+  // Allow larger page sizes so clients can request all records when needed.
+  const pageSize = Math.min(Math.max(rawPageSize || 25, 1), 500);
   const offset = (page - 1) * pageSize;
 
   return { page, pageSize, offset };

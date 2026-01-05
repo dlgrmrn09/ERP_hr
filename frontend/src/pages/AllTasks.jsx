@@ -14,6 +14,7 @@ import { Link } from "react-router-dom";
 import BlackButton from "../components/BlackButton.jsx";
 import Searchbar from "../components/Searchbar.jsx";
 import apiClient from "../utils/apiClient";
+import Loader from "../components/loader.jsx";
 
 const TASK_STATUS_OPTIONS = [
   { value: "Working On It", label: "Working On It" },
@@ -739,11 +740,7 @@ function TaskModal({
                   </option>
                 ))}
               </select>
-              {isLoadingGroups ? (
-                <span className="text-xs font-medium text-slate-400">
-                  Loading groups…
-                </span>
-              ) : null}
+              {isLoadingGroups ? <Loader /> : null}
             </label>
 
             <label className="flex flex-col gap-2 text-sm font-semibold text-slate-600">
@@ -772,11 +769,7 @@ function TaskModal({
               }))}
               disabled={!formState.boardId || isLoadingMembers}
             />
-            {isLoadingMembers ? (
-              <span className="text-xs font-medium text-slate-400">
-                Loading members…
-              </span>
-            ) : null}
+            {isLoadingMembers ? <Loader /> : null}
             {!isLoadingMembers &&
             formState.boardId &&
             boardMembers.length === 0 ? (
@@ -2354,8 +2347,9 @@ function AllTasks() {
       ) : null}
 
       {isLoading ? (
-        <div className="mt-10 rounded-2xl border border-slate-200 bg-white/70 px-6 py-6 text-sm font-medium text-slate-500">
-          Loading tasks…
+        <div className="mt-10 flex flex-col items-center gap-3 rounded-2xl border border-slate-200 bg-white/70 px-6 py-8 text-sm font-medium text-slate-500">
+          <Loader />
+          <span>Уншиж байна.</span>
         </div>
       ) : null}
 

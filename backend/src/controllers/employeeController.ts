@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import pool from "../config/db";
 import { asyncHandler } from "../utils/asyncHandler";
 import { parsePagination, buildPaginationMeta } from "../utils/pagination";
+import { resolveFileUrl, toAbsoluteFileUrl } from "../utils/storage";
 
 type AuthedRequest = Request & { user?: { id?: number } };
 
@@ -71,6 +72,11 @@ SELECT e.employee_id AS id,
 FROM employees e
 LEFT JOIN attendance_employee_aggregates agg ON agg.employee_id = e.employee_id
 `;
+
+const mapEmployee = (row: any) => ({
+  ...row,
+  cv_url: toAbsoluteFileUrl(row?.cv_url ?? null),
+});
 
 const buildFilters = ({
   search,
@@ -156,7 +162,7 @@ export const listEmployees = asyncHandler(
     );
 
     res.json({
-      data: dataResult.rows,
+      data: dataResult.rows.map(mapEmployee),
       pagination: buildPaginationMeta(
         page,
         pageSize,
@@ -174,10 +180,10 @@ export const getEmployee = asyncHandler(async (req: Request, res: Response) => {
   );
 
   if (employeeResult.rows.length === 0) {
-    return res.status(404).json({ message: "Employee not found" });
+    return res.status(404).json({ message: "Ажилтан олдсонгүй" });
   }
 
-  return res.json({ employee: employeeResult.rows[0] });
+  return res.json({ employee: mapEmployee(employeeResult.rows[0]) });
 });
 
 const requiredEmployeeFields = [
@@ -194,6 +200,14 @@ const normalizeOptional = (value: unknown) => {
     return null;
   }
   return value as string;
+};
+
+const isValidEightDigitPhone = (value: unknown) => {
+  if (typeof value !== "string") {
+    return false;
+  }
+  const trimmed = value.trim();
+  return /^\d{8}$/.test(trimmed);
 };
 
 const parseNullableInteger = (value: unknown) => {
@@ -215,39 +229,55 @@ const normalizeGender = (value: unknown) => {
   return trimmed === "" ? null : trimmed;
 };
 
-const mapEmployeePayload = (payload: EmployeePayloadInput) => ({
-  employee_code: payload.employeeCode,
-  first_name: payload.firstName,
-  last_name: payload.lastName,
-  email: payload.email?.toLowerCase(),
-  phone_number: normalizeOptional(payload.phoneNumber),
-  position_title: normalizeOptional(payload.positionTitle),
-  employment_status: payload.employmentStatus,
-  gender: normalizeGender(payload.gender),
-  age: parseNullableInteger(payload.age),
-  start_date: normalizeOptional(payload.startDate),
-  cv_url: normalizeOptional(payload.cvUrl),
-});
+const mapEmployeePayload = (payload: EmployeePayloadInput = {}) => {
+  const normalizedPhone = normalizeOptional(payload?.phoneNumber);
+  const sanitizedPhone =
+    typeof normalizedPhone === "string"
+      ? normalizedPhone.trim()
+      : normalizedPhone;
+
+  return {
+    employee_code: payload?.employeeCode,
+    first_name: payload?.firstName,
+    last_name: payload?.lastName,
+    email: payload?.email?.toLowerCase(),
+    phone_number: sanitizedPhone,
+    position_title: normalizeOptional(payload?.positionTitle),
+    employment_status: payload?.employmentStatus,
+    gender: normalizeGender(payload?.gender),
+    age: parseNullableInteger(payload?.age),
+    start_date: normalizeOptional(payload?.startDate),
+    cv_url: normalizeOptional(payload?.cvUrl),
+  };
+};
 
 export const createEmployee = asyncHandler(
   async (req: AuthedRequest, res: Response) => {
-    const missingField = requiredEmployeeFields.find(
-      (field) => !(req.body as any)[field]
-    );
+    const uploadedCv = (req as AuthedRequest).file;
+    const body = (req.body ?? {}) as any;
+    const missingField = requiredEmployeeFields.find((field) => !body[field]);
     if (missingField) {
       return res
         .status(400)
-        .json({ message: `Missing field: ${missingField}` });
+        .json({ message: `Мэдээлэл дутуу байна: ${missingField}` });
     }
 
     const payload = mapEmployeePayload(req.body);
+    const finalCvUrl = uploadedCv
+      ? resolveFileUrl("cvs", uploadedCv.filename)
+      : payload.cv_url;
 
     const existing = await pool.query(
       `SELECT 1 FROM employees WHERE employee_code = $1 OR email = $2`,
       [payload.employee_code, payload.email]
     );
     if (existing.rows.length > 0) {
-      return res.status(400).json({ message: "Employee already exists" });
+      return res.status(400).json({ message: "Ажилтан Бүртгэгдсэн байна" });
+    }
+    if (!isValidEightDigitPhone(payload.phone_number)) {
+      return res.status(400).json({
+        message: "Утасны дугаар буруу байна. 8 оронтой тоо оруулна уу.",
+      });
     }
 
     const result = await pool.query(
@@ -269,7 +299,7 @@ export const createEmployee = asyncHandler(
         payload.gender,
         payload.age,
         payload.start_date,
-        payload.cv_url,
+        finalCvUrl,
         req.user?.id || null,
         req.user?.id || null,
       ]
@@ -281,17 +311,28 @@ export const createEmployee = asyncHandler(
       [result.rows[0].id]
     );
 
-    return res.status(201).json({ employee: employee.rows[0] });
+    return res.status(201).json({ employee: mapEmployee(employee.rows[0]) });
   }
 );
 
 export const updateEmployee = asyncHandler(
   async (req: AuthedRequest, res: Response) => {
+    const uploadedCv = (req as AuthedRequest).file;
     const payload = mapEmployeePayload(req.body);
     const employeeId = req.params["id"];
+
     if (!employeeId) {
-      return res.status(400).json({ message: "Employee id is required" });
+      return res.status(400).json({ message: "Ажилтанын ID Оруулна уу." });
     }
+
+    if (typeof payload.phone_number !== "undefined") {
+      if (!isValidEightDigitPhone(payload.phone_number)) {
+        return res.status(400).json({
+          message: "Утасны дугаар буруу байна.",
+        });
+      }
+    }
+
     if (payload.employee_code || payload.email) {
       const uniquenessChecks: string[] = [];
       const values: Array<string | number | null> = [];
@@ -316,7 +357,7 @@ export const updateEmployee = asyncHandler(
         );
         if (duplicate.rows.length > 0) {
           return res.status(400).json({
-            message: "Employee with provided code or email already exists",
+            message: "Ажилтанын код эсвэл имэйл давхардсан байна",
           });
         }
       }
@@ -326,6 +367,9 @@ export const updateEmployee = asyncHandler(
     let idx = 1;
 
     Object.entries(payload).forEach(([key, value]) => {
+      if (key === "cv_url") {
+        return;
+      }
       if (typeof value !== "undefined" && value !== null) {
         updates.push(`${key} = $${idx}`);
         values.push(value);
@@ -333,8 +377,20 @@ export const updateEmployee = asyncHandler(
       }
     });
 
+    if (uploadedCv) {
+      updates.push(`cv_url = $${idx}`);
+      values.push(resolveFileUrl("cvs", uploadedCv.filename));
+      idx += 1;
+    } else if (typeof payload.cv_url !== "undefined") {
+      updates.push(`cv_url = $${idx}`);
+      values.push(payload.cv_url);
+      idx += 1;
+    }
+
     if (updates.length === 0) {
-      return res.status(400).json({ message: "No fields to update" });
+      return res
+        .status(400)
+        .json({ message: "Шинэчлэх мэдээлэлээ оруулна уу" });
     }
 
     updates.push(`updated_by = $${idx}`);
@@ -354,7 +410,7 @@ export const updateEmployee = asyncHandler(
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Employee not found" });
+      return res.status(404).json({ message: "Ажилтан олдсонгүй" });
     }
 
     const employee = await pool.query(
@@ -363,7 +419,7 @@ export const updateEmployee = asyncHandler(
       [result.rows[0].id]
     );
 
-    return res.json({ employee: employee.rows[0] });
+    return res.json({ employee: mapEmployee(employee.rows[0]) });
   }
 );
 
@@ -377,7 +433,7 @@ export const deleteEmployee = asyncHandler(
     );
 
     if (result.rowCount === 0) {
-      return res.status(404).json({ message: "Employee not found" });
+      return res.status(404).json({ message: "Ажилтан олдсонгүй" });
     }
 
     return res.status(204).end();

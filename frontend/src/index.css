@@ -6,8 +6,86 @@
   box-sizing: border-box;
 }
 
+:root {
+  --bg: linear-gradient(#ecf6fb, #dbf5ff);
+  --card: #ffffff;
+  --text-primary: #0f172a;
+  --text-muted: #475569;
+  --border: #e2e8f0;
+  color-scheme: light;
+}
+
 body {
   font-family: "Roboto", sans-serif;
   min-height: 100dvh;
-  background: linear-gradient(#ecf6fb, #dbf5ff);
+  background: var(--bg);
+  color: var(--text-primary);
+  transition: background 180ms ease, color 180ms ease;
+}
+
+body.theme-dark {
+  --bg: radial-gradient(
+    circle at 20% 20%,
+    #0f172a 0,
+    #0b1220 40%,
+    #060a12 100%
+  );
+  --card: #0f172a;
+  --text-primary: #e2e8f0;
+  --text-muted: #cbd5e1;
+  --border: #1f2937;
+  color-scheme: dark;
+}
+
+body.theme-light {
+  color-scheme: light;
+}
+
+/* Global dark overrides for common utility classes */
+body.theme-dark .bg-white {
+  background-color: var(--card) !important;
+}
+
+body.theme-dark .bg-white\/80 {
+  background-color: rgba(15, 23, 42, 0.8) !important;
+}
+
+body.theme-dark .bg-slate-50,
+body.theme-dark .bg-slate-100,
+body.theme-dark .bg-slate-200,
+body.theme-dark .bg-gray-50,
+body.theme-dark .bg-gray-100 {
+  background-color: #0b1220 !important;
+}
+
+body.theme-dark .text-slate-900,
+body.theme-dark .text-slate-800,
+body.theme-dark .text-gray-900,
+body.theme-dark .text-gray-800 {
+  color: var(--text-primary) !important;
+}
+
+body.theme-dark .text-slate-700,
+body.theme-dark .text-slate-600,
+body.theme-dark .text-slate-500,
+body.theme-dark .text-gray-700,
+body.theme-dark .text-gray-600,
+body.theme-dark .text-gray-500,
+body.theme-dark .text-slate-400,
+body.theme-dark .text-gray-400 {
+  color: var(--text-muted) !important;
+}
+
+body.theme-dark .border-slate-200,
+body.theme-dark .border-slate-100,
+body.theme-dark .border-gray-200,
+body.theme-dark .border-gray-100,
+body.theme-dark .divide-slate-100,
+body.theme-dark .divide-gray-100 {
+  border-color: var(--border) !important;
+}
+
+body.theme-dark .ring-slate-200,
+body.theme-dark .ring-gray-200 {
+  --tw-ring-color: var(--border) !important;
 }

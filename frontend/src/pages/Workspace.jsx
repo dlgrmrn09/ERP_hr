@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import apiClient from "../utils/apiClient";
 import SearchIcon from "../assets/icons8-search.svg";
+import Loader from "../components/loader.jsx";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -491,7 +492,10 @@ function Workspace() {
       return (
         <tr>
           <td colSpan={6} className="py-6 text-center text-sm text-slate-500">
-            Самбаруудыг татаж байна...
+            <div className="flex flex-col items-center gap-2 py-1">
+              <Loader size={48} />
+              <span>Самбаруудыг татаж байна...</span>
+            </div>
           </td>
         </tr>
       );
@@ -590,8 +594,9 @@ function Workspace() {
         </header>
 
         {workspacesState.loading ? (
-          <div className="mt-10 rounded-3xl border border-slate-200 bg-white/70 p-10 text-center text-sm text-slate-500">
-            Workspace мэдээллийг татаж байна...
+          <div className="mt-10 flex flex-col items-center gap-3 rounded-3xl border border-slate-200 bg-white/70 p-10 text-center text-sm text-slate-500">
+            <Loader size={72} />
+            <span>Workspace мэдээллийг татаж байна...</span>
           </div>
         ) : workspacesState.error ? (
           <div className="mt-10 rounded-3xl border border-rose-200 bg-rose-50 p-10 text-center text-sm text-rose-600">

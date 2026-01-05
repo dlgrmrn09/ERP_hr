@@ -21,11 +21,30 @@ export const resolveFileUrl = (subDir: string, filename: string): string => {
   return `/uploads/${subDir}/${normalized}`;
 };
 
+export const toAbsoluteFileUrl = (
+  relativePath: string | null
+): string | null => {
+  if (!relativePath) return null;
+  if (
+    relativePath.startsWith("http://") ||
+    relativePath.startsWith("https://")
+  ) {
+    return relativePath;
+  }
+  const backendUrl =
+    process.env["BACKEND_URL"] ||
+    `http://localhost:${process.env["PORT"] || 5000}`;
+  return `${backendUrl}${
+    relativePath.startsWith("/") ? "" : "/"
+  }${relativePath}`;
+};
+
 export const getUploadRoot = (): string => uploadRoot;
 
 export default {
   ensureUploadDir,
   initializeUploadStorage,
   resolveFileUrl,
+  toAbsoluteFileUrl,
   getUploadRoot,
 };

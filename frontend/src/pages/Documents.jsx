@@ -23,11 +23,51 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
   timeStyle: "short",
 });
 
+const createPageList = (current, total) => {
+  // Generate pagination items with ellipsis markers for large sets.
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, index) => ({
+      type: "page",
+      value: index + 1,
+    }));
+  }
+
+  const windowPages = [current - 1, current, current + 1].filter(
+    (page) => page >= 1 && page <= total
+  );
+
+  const basePages = new Set([1, 2, total - 1, total, ...windowPages]);
+  const sortedPages = Array.from(basePages).sort((a, b) => a - b);
+
+  const items = [];
+  for (let i = 0; i < sortedPages.length; i += 1) {
+    const page = sortedPages[i];
+    const prev = sortedPages[i - 1];
+    if (i > 0 && page - prev > 1) {
+      items.push({ type: "ellipsis", value: `ellipsis-${page}` });
+    }
+    items.push({ type: "page", value: page });
+  }
+
+  return items;
+};
+
 const compareStrings = (left, right) =>
   (left ?? "").localeCompare(right ?? "", undefined, {
     sensitivity: "base",
     numeric: true,
   });
+
+const resolveDocumentUrl = (url) => {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+
+  const apiBase = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
+  const backendBase = apiBase.replace(/\/api\/?$/, "");
+  const normalized = url.startsWith("/") ? url : `/uploads/${url}`;
+
+  return `${backendBase}${normalized}`;
+};
 
 const useDebouncedValue = (value, delay = 400) => {
   const [debounced, setDebounced] = useState(value);
@@ -75,6 +115,8 @@ function DocumentFormModal({
     return null;
   }
 
+  const existingFileUrl = resolveDocumentUrl(initialData?.file_url);
+
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormState((current) => ({ ...current, [name]: value }));
@@ -95,15 +137,15 @@ function DocumentFormModal({
       <div className="w-full max-w-xl rounded-2xl bg-white shadow-2xl ">
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <h2 className="text-lg font-semibold text-slate-900">
-            {mode === "edit" ? "Edit Document" : "New Document"}
+            {mode === "edit" ? "Засах" : " Бичиг Баримт"}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold text-black hover:bg-[#191e21] hover:text-white focus:outline-none focus:ring-2 focus:ring-slate-200"
             aria-label="Close"
           >
-            ×
+            X
           </button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-5 px-6 py-6">
@@ -112,7 +154,7 @@ function DocumentFormModal({
               htmlFor="document-title"
               className="text-sm font-medium text-slate-700"
             >
-              Title
+              Гарчиг
             </label>
             <input
               id="document-title"
@@ -130,7 +172,7 @@ function DocumentFormModal({
               htmlFor="document-description"
               className="text-sm font-medium text-slate-700"
             >
-              Description
+              Тайлбар
             </label>
             <textarea
               id="document-description"
@@ -147,7 +189,7 @@ function DocumentFormModal({
               htmlFor="document-category"
               className="text-sm font-medium text-slate-700"
             >
-              Type
+              Төрөл
             </label>
             <input
               id="document-category"
@@ -170,7 +212,7 @@ function DocumentFormModal({
               htmlFor="document-file"
               className="text-sm font-medium text-slate-700"
             >
-              File
+              PDF
             </label>
             <input
               id="document-file"
@@ -180,16 +222,16 @@ function DocumentFormModal({
               onChange={handleFileChange}
               className="w-full text-sm text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-black"
             />
-            {mode === "edit" && initialData?.file_url ? (
+            {mode === "edit" && existingFileUrl ? (
               <p className="text-xs text-slate-500">
                 Current file:{" "}
                 <a
-                  href={initialData.file_url}
+                  href={existingFileUrl}
                   className="font-medium text-slate-900 underline"
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Open
+                  Үзэх
                 </a>
               </p>
             ) : null}
@@ -200,16 +242,10 @@ function DocumentFormModal({
           ) : null}
 
           <div className="flex justify-end gap-3 pt-2">
-            <WhiteButton label="Cancel" onClick={onClose} />
+            <WhiteButton label="Цуцлах" onClick={onClose} />
             <BlackButton
               type="submit"
-              label={
-                isSaving
-                  ? "Saving..."
-                  : mode === "edit"
-                  ? "Save Changes"
-                  : "Create"
-              }
+              label={isSaving ? "Хадгалаж байна..." : "Хадгалах"}
               className={isSaving ? "cursor-not-allowed opacity-75" : ""}
             />
           </div>
@@ -495,6 +531,11 @@ function Documents() {
       })()
     : null;
 
+  const pageItems = useMemo(
+    () => createPageList(currentPage, totalPages),
+    [currentPage, totalPages]
+  );
+
   const handleSearchChange = (event) => {
     if (page !== 1) {
       setPage(1);
@@ -684,9 +725,9 @@ function Documents() {
         </td>
         <td className="px-4 py-3 text-right text-sm">
           <div className="flex justify-end gap-2">
-            {doc.file_url ? (
+            {resolveDocumentUrl(doc.file_url) ? (
               <a
-                href={doc.file_url}
+                href={resolveDocumentUrl(doc.file_url)}
                 target="_blank"
                 rel="noreferrer"
                 className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:border-slate-400 hover:text-slate-800"
@@ -922,9 +963,27 @@ function Documents() {
                 onClick={handlePreviousPage}
                 disabled={!hasPrevious || isLoading}
               />
-              <span className="text-sm font-semibold text-slate-700">
-                {currentPage} / {totalPages}
-              </span>
+              <div className="flex items-center gap-1">
+                {pageItems.map((item) =>
+                  item.type === "ellipsis" ? (
+                    <span
+                      key={item.value}
+                      className="px-1 text-sm font-semibold text-slate-400"
+                      aria-hidden="true"
+                    >
+                      …
+                    </span>
+                  ) : (
+                    <WhiteButton
+                      key={item.value}
+                      label={`${item.value}`}
+                      onClick={() => setPage(item.value)}
+                      isSelected={currentPage === item.value}
+                      ariaLabel={`Хуудас ${item.value}`}
+                    />
+                  )
+                )}
+              </div>
               <WhiteButton
                 label="›"
                 onClick={handleNextPage}

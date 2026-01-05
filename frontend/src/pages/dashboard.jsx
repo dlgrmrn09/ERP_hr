@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import apiClient from "../utils/apiClient";
 import { Link, useNavigate } from "react-router-dom";
 import ProfileModal from "../components/Profile.jsx";
+import EmployeeIcon from "../assets/icons8-employee.svg";
+import TaskIcon from "../assets/icons8-tasks.svg";
+import Loader from "../components/loader.jsx";
 
-const ICON_EMPLOYEES =
-  "https://www.figma.com/api/mcp/asset/e34c8037-bafd-4c73-a14f-26d998d8cf60";
-const ICON_TASKS =
-  "https://www.figma.com/api/mcp/asset/5d821cfb-0013-4bca-825d-6f78454c14ea";
+const ICON_EMPLOYEES = EmployeeIcon;
+const ICON_TASKS = TaskIcon;
 
 const WORK_STATUS_COLORS = {
   done: "#02b3ff",
@@ -51,22 +52,29 @@ function OverviewScrollable({
   taskSummary,
   attendanceBreakdown,
   tasksByOwner,
+  isDark,
 }) {
   const totalEmployees = employeeTypes.reduce(
     (acc, item) => acc + item.count,
     0
   );
 
-  let accumulated = 0;
   const donutSegments = employeeTypes
-    .map((item) => {
-      const portion = totalEmployees ? (item.count / totalEmployees) * 100 : 0;
-      const start = accumulated;
-      accumulated += portion;
-      const end = Math.min(start + portion, 100);
-      return `${item.color} ${start}% ${end}%`;
-    })
-    .join(", ");
+    .reduce(
+      (acc, item) => {
+        const portion = totalEmployees
+          ? (item.count / totalEmployees) * 100
+          : 0;
+        const start = acc.accumulated;
+        const end = Math.min(start + portion, 100);
+        return {
+          accumulated: end,
+          segments: [...acc.segments, `${item.color} ${start}% ${end}%`],
+        };
+      },
+      { accumulated: 0, segments: [] }
+    )
+    .segments.join(", ");
 
   const maxOwnerCount = tasksByOwner.reduce(
     (max, item) => Math.max(max, item.count),
@@ -78,14 +86,28 @@ function OverviewScrollable({
       <div className="overflow-x-auto pb-4">
         <div className="min-w-275 rounded-[30px]  ">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)]">
-            <article className="rounded-[30px] bg-white p-6 shadow-lg">
+            <article
+              className={`rounded-[30px] p-6 shadow-lg ${
+                isDark
+                  ? "border border-slate-700 bg-slate-900/90 text-slate-100 shadow-slate-900/30"
+                  : "bg-white text-slate-900"
+              }`}
+            >
               <header className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-slate-900">
+                <h2
+                  className={`text-xl font-semibold ${
+                    isDark ? "text-slate-100" : "text-slate-900"
+                  }`}
+                >
                   Ажилчдын төрөл
                 </h2>
                 <button
                   type="button"
-                  className="flex h-6 w-6 items-center justify-center rounded-full bg-[#191E21] text-white"
+                  className={`flex h-6 w-6 items-center justify-center rounded-full ${
+                    isDark
+                      ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                      : "bg-[#191E21] text-white"
+                  }`}
                   aria-label="More options"
                 >
                   <span>•••</span>
@@ -98,18 +120,28 @@ function OverviewScrollable({
                     style={{
                       background: donutSegments
                         ? `conic-gradient(${donutSegments})`
+                        : isDark
+                        ? "#0b1220"
                         : "#f8fafc",
                     }}
                     role="img"
                     aria-label="Ажилчдын төрөл"
                   />
-                  <div className="absolute inset-[22%] flex items-center justify-center rounded-full bg-white text-center shadow-inner">
-                    <span className="text-2xl font-bold text-slate-900">
+                  <div
+                    className={`absolute inset-[22%] flex items-center justify-center rounded-full text-center shadow-inner ${
+                      isDark ? "bg-slate-800 text-slate-100" : "bg-white"
+                    }`}
+                  >
+                    <span className="text-2xl font-bold">
                       {loading ? "--" : formatNumber(totalEmployees)}
                     </span>
                   </div>
                 </div>
-                <ul className="flex flex-col gap-2 text-sm text-slate-700">
+                <ul
+                  className={`flex flex-col gap-2 text-sm ${
+                    isDark ? "text-slate-300" : "text-slate-700"
+                  }`}
+                >
                   {employeeTypes.map((item) => (
                     <li key={item.id} className="flex items-center gap-2">
                       <span
@@ -123,35 +155,59 @@ function OverviewScrollable({
                     </li>
                   ))}
                   {employeeTypes.length === 0 && !loading && (
-                    <li className="text-xs text-slate-500">
+                    <li
+                      className={`text-xs ${
+                        isDark ? "text-slate-500" : "text-slate-500"
+                      }`}
+                    >
                       Өгөгдөл олдсонгүй.
                     </li>
                   )}
                 </ul>
               </div>
             </article>
-            <article className="rounded-[30px] bg-white p-6 shadow-lg">
+            <article
+              className={`rounded-[30px] p-6 shadow-lg ${
+                isDark
+                  ? "border border-slate-700 bg-slate-900/90 text-slate-100 shadow-slate-900/30"
+                  : "bg-white text-slate-900"
+              }`}
+            >
               <Link to="/time-tracking">
                 <header className="mb-4 flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-slate-900">
-                    Цагын бүртгэл
+                  <h2
+                    className={`text-xl font-semibold ${
+                      isDark ? "text-slate-100" : "text-slate-900"
+                    }`}
+                  >
+                    Цаг бүртгэл
                   </h2>
                   <button
                     type="button"
-                    className="flex h-6 w-6 items-center justify-center rounded-full bg-[#191E21] text-white"
+                    className={`flex h-6 w-6 items-center justify-center rounded-full ${
+                      isDark
+                        ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                        : "bg-[#191E21] text-white"
+                    }`}
                     aria-label="More options"
                   >
                     <span>•••</span>
                   </button>
                 </header>
-                <dl className="flex flex-col gap-3 text-sm text-slate-700">
+                <dl
+                  className={`flex flex-col gap-3 text-sm ${
+                    isDark ? "text-slate-300" : "text-slate-700"
+                  }`}
+                >
                   {timeMetrics.map((metric) => (
                     <div
                       key={metric.id}
                       className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-2"
                     >
                       <dt className="font-medium">{metric.label}</dt>
-                      <dd className="text-slate-900">
+                      <dd
+                        className={isDark ? "text-slate-100" : "text-slate-900"}
+                      >
                         {loading ? "--" : metric.value}
                       </dd>
                     </div>
@@ -159,28 +215,47 @@ function OverviewScrollable({
                 </dl>
               </Link>
             </article>
-
-            <article className="rounded-[30px] bg-white p-6 shadow-lg">
+            <article
+              className={`rounded-[30px] p-6 shadow-lg ${
+                isDark
+                  ? "border border-slate-700 bg-slate-900/90 text-slate-100 shadow-slate-900/30"
+                  : "bg-white text-slate-900"
+              }`}
+            >
               <header className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-slate-900">
+                <h2
+                  className={`text-xl font-semibold ${
+                    isDark ? "text-slate-100" : "text-slate-900"
+                  }`}
+                >
                   Бичиг баримт
                 </h2>
                 <button
                   type="button"
-                  className="flex h-6 w-6 items-center justify-center rounded-full bg-[#191E21] text-white"
+                  className={`flex h-6 w-6 items-center justify-center rounded-full ${
+                    isDark
+                      ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                      : "bg-[#191E21] text-white"
+                  }`}
                   aria-label="More options"
                 >
                   <span>•••</span>
                 </button>
               </header>
-              <dl className="flex flex-col gap-3 text-sm text-slate-700">
+              <dl
+                className={`flex flex-col gap-3 text-sm ${
+                  isDark ? "text-slate-300" : "text-slate-700"
+                }`}
+              >
                 {documentMetrics.map((metric) => (
                   <div
                     key={metric.id}
                     className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-2"
                   >
                     <dt className="font-medium">{metric.label}</dt>
-                    <dd className="text-slate-900">
+                    <dd
+                      className={isDark ? "text-slate-100" : "text-slate-900"}
+                    >
                       {loading ? "--" : metric.value}
                     </dd>
                   </div>
@@ -193,19 +268,27 @@ function OverviewScrollable({
             {taskSummary.map((item) => (
               <article
                 key={item.id}
-                className="flex flex-col items-center justify-between rounded-[30px] bg-white p-6 text-center shadow-lg"
+                className={`flex flex-col items-center justify-between rounded-[30px] p-6 text-center shadow-lg ${
+                  isDark
+                    ? "border border-slate-700 bg-slate-900/90 text-slate-100 shadow-slate-900/30"
+                    : "bg-white text-slate-900"
+                }`}
               >
                 <header className="mb-2 flex w-full items-center justify-between text-sm text-slate-500">
                   <span>{item.label}</span>
                   <button
                     type="button"
-                    className="flex h-6 w-6 items-center justify-center rounded-full bg-[#191E21] text-white"
+                    className={`flex h-6 w-6 items-center justify-center rounded-full ${
+                      isDark
+                        ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                        : "bg-[#191E21] text-white"
+                    }`}
                     aria-label="More options"
                   >
                     <span>•••</span>
                   </button>
                 </header>
-                <p className="text-3xl font-bold text-slate-900">
+                <p className="text-3xl font-bold">
                   {loading ? "--" : item.value}
                 </p>
               </article>
@@ -213,12 +296,25 @@ function OverviewScrollable({
           </div>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-            <article className="rounded-[30px] bg-white p-6 shadow-lg">
-              <header className="mb-4 text-xl font-semibold text-slate-900">
+            <article
+              className={`rounded-[30px] p-6 shadow-lg ${
+                isDark
+                  ? "border border-slate-700 bg-slate-900/90 text-slate-100 shadow-slate-900/30"
+                  : "bg-white text-slate-900"
+              }`}
+            >
+              <header
+                className={`mb-4 text-xl font-semibold ${
+                  isDark ? "text-slate-100" : "text-slate-900"
+                }`}
+              >
                 Ирцийн тойм
               </header>
               {loading && attendanceBreakdown.length === 0 ? (
-                <p className="text-sm text-slate-500">Өгөгдөл татаж байна...</p>
+                <div className="flex flex-col items-center gap-2 text-sm text-slate-500">
+                  <Loader size={56} />
+                  <span>Өгөгдөл татаж байна...</span>
+                </div>
               ) : attendanceBreakdown.length === 0 ? (
                 <p className="text-sm text-slate-500">
                   Ирцийн мэдээлэл олдсонгүй.
@@ -272,21 +368,38 @@ function OverviewScrollable({
               )}
             </article>
 
-            <article className="rounded-[30px] bg-white p-6 shadow-lg">
+            <article
+              className={`rounded-[30px] p-6 shadow-lg ${
+                isDark
+                  ? "border border-slate-700 bg-slate-900/90 text-slate-100 shadow-slate-900/30"
+                  : "bg-white text-slate-900"
+              }`}
+            >
               <header className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-slate-900">
+                <h2
+                  className={`text-xl font-semibold ${
+                    isDark ? "text-slate-100" : "text-slate-900"
+                  }`}
+                >
                   Даалгавар
                 </h2>
                 <button
                   type="button"
-                  className="flex h-6 w-6 items-center justify-center rounded-full bg-[#191E21] text-white"
+                  className={`flex h-6 w-6 items-center justify-center rounded-full ${
+                    isDark
+                      ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                      : "bg-[#191E21] text-white"
+                  }`}
                   aria-label="More options"
                 >
                   <span>•••</span>
                 </button>
               </header>
               {loading ? (
-                <p className="text-sm text-slate-500">Өгөгдөл татаж байна...</p>
+                <div className="flex flex-col items-center gap-2 text-sm text-slate-500">
+                  <Loader size={56} />
+                  <span>Өгөгдөл татаж байна...</span>
+                </div>
               ) : tasksByOwner.length === 0 ? (
                 <p className="text-sm text-slate-500">
                   Даалгаврын эзэмшигчийн мэдээлэл алга.
@@ -324,27 +437,59 @@ function OverviewScrollable({
   );
 }
 
-function StatCard({ label, value, delta, icon, loading, to }) {
+function StatCard({ label, value, delta, icon, loading, to, isDark }) {
   return (
     <Link to={to || "/"}>
-      <article className="rounded-[30px] bg-white p-6 shadow-lg mr-5 cursor-pointer hover:shadow-xl hover:translate-y-[-5px]">
+      <article
+        className={`mr-5 cursor-pointer rounded-[30px] p-6 transition hover:translate-y-[-5px] hover:shadow-xl ${
+          isDark
+            ? "border border-slate-700 bg-slate-900/90 text-slate-100 shadow-lg shadow-slate-900/30"
+            : "bg-white text-slate-900 shadow-lg"
+        }`}
+      >
         <div className="flex items-start justify-between">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100">
-            <img src={icon} alt="" className="h-6 w-6" />
+          <span
+            className={`flex h-10 w-10 items-center justify-center rounded-full ${
+              isDark ? "bg-slate-800" : "bg-slate-100"
+            }`}
+          >
+            <img
+              src={icon}
+              alt=""
+              className={`h-6 w-6 ${isDark ? "invert" : ""}`}
+            />
           </span>
           <button
             type="button"
-            className="flex h-6 w-6 items-center justify-center rounded-full  bg-[#191E21] text-white cursor-pointer"
+            className={`flex h-6 w-6 items-center justify-center rounded-full cursor-pointer ${
+              isDark
+                ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                : "bg-[#191E21] text-white"
+            }`}
             aria-label="More options"
           >
             <span className="text-m">•••</span>
           </button>
         </div>
-        <p className="mt-4 text-lg font-medium text-slate-900">{label}</p>
-        <p className="mt-2 text-3xl font-bold text-slate-900">
+        <p
+          className={`mt-4 text-lg font-medium ${
+            isDark ? "text-slate-200" : "text-slate-900"
+          }`}
+        >
+          {label}
+        </p>
+        <p
+          className={`mt-2 text-3xl font-bold ${
+            isDark ? "text-slate-100" : "text-slate-900"
+          }`}
+        >
           {loading ? "--" : value}
         </p>
-        <p className="mt-3 text-sm text-slate-500">
+        <p
+          className={`mt-3 text-sm ${
+            isDark ? "text-slate-400" : "text-slate-500"
+          }`}
+        >
           {loading ? "Өгөгдөл татаж байна..." : delta}
         </p>
       </article>
@@ -352,7 +497,7 @@ function StatCard({ label, value, delta, icon, loading, to }) {
   );
 }
 
-function WorkStatusChart({ data, loading }) {
+function WorkStatusChart({ data, loading, isDark }) {
   const navigate = useNavigate();
   const handleNavigate = (status) => {
     const params = new URLSearchParams({ group: "status" });
@@ -373,12 +518,22 @@ function WorkStatusChart({ data, loading }) {
     .join(", ");
 
   return (
-    <article className="flex h-full flex-col rounded-[30px] bg-white px-10 py-8 shadow-lg ">
+    <article
+      className={`flex h-full flex-col rounded-[30px] px-10 py-8 shadow-lg ${
+        isDark
+          ? "border border-slate-700 bg-slate-900/90 text-slate-100 shadow-slate-900/30"
+          : "bg-white text-slate-900"
+      }`}
+    >
       <header className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-slate-900 ">Ажлын төлөв</h2>
+        <h2 className="text-xl font-semibold">Ажлын төлөв</h2>
         <button
           type="button"
-          className="flex h-6 w-6 items-center justify-center rounded-full  bg-[#191E21] text-white cursor-pointer"
+          className={`flex h-6 w-6 items-center justify-center rounded-full  ${
+            isDark
+              ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+              : "bg-[#191E21] text-white"
+          } cursor-pointer`}
           aria-label="More options"
         >
           <span className="text-m">•••</span>
@@ -408,13 +563,21 @@ function WorkStatusChart({ data, loading }) {
                 }
               }}
             />
-            <ul className="flex justify-center w-full gap-2 text-sm text-slate-700 sm:grid-cols-3">
+            <ul
+              className={`flex w-full justify-center gap-2 text-sm sm:grid-cols-3 ${
+                isDark ? "text-slate-200" : "text-slate-700"
+              }`}
+            >
               {data.map((item) => (
                 <li key={item.label} className="flex">
                   <button
                     type="button"
                     onClick={() => handleNavigate(item.id)}
-                    className="flex w-full items-center  gap-2 rounded-xl border border-transparent px-3 py-2 text-left transition hover:border-slate-200 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-200"
+                    className={`flex w-full items-center  gap-2 rounded-xl border border-transparent px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 ${
+                      isDark
+                        ? "hover:border-slate-700 hover:bg-slate-800/80 focus-visible:ring-slate-700"
+                        : "hover:border-slate-200 hover:bg-slate-50 focus-visible:ring-slate-200"
+                    }`}
                   >
                     <span className="flex items-center gap-2">
                       <span
@@ -437,7 +600,7 @@ function WorkStatusChart({ data, loading }) {
   );
 }
 
-function AgeGenderDistributionBlock({ data, loading }) {
+function AgeGenderDistributionBlock({ data, loading, isDark }) {
   const [viewMode, setViewMode] = useState("count");
   const totals = useMemo(() => {
     if (!Array.isArray(data) || data.length === 0) {
@@ -463,7 +626,13 @@ function AgeGenderDistributionBlock({ data, loading }) {
   }, [data]);
 
   return (
-    <article className="rounded-[30px] bg-white p-6 shadow-lg">
+    <article
+      className={`rounded-[30px] p-6 shadow-lg ${
+        isDark
+          ? "border border-slate-700 bg-slate-900/90 text-slate-100 shadow-slate-900/30"
+          : "bg-white text-slate-900"
+      }`}
+    >
       <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">
@@ -493,13 +662,21 @@ function AgeGenderDistributionBlock({ data, loading }) {
               Эмэгтэй
             </span>
           </div>
-          <div className="inline-flex rounded-full bg-white p-1 text-xs font-medium text-slate-600 shadow-sm">
+          <div
+            className={`inline-flex rounded-full p-1 text-xs font-medium shadow-sm ${
+              isDark ? "bg-slate-800 text-slate-200" : "bg-white text-slate-600"
+            }`}
+          >
             <button
               type="button"
               onClick={() => setViewMode("count")}
               className={`rounded-full px-3 py-1 transition ${
                 viewMode === "count"
-                  ? "bg-[#191e21] text-white shadow-sm"
+                  ? isDark
+                    ? "bg-slate-700 text-white shadow-sm"
+                    : "bg-[#191e21] text-white shadow-sm"
+                  : isDark
+                  ? "hover:text-slate-100"
                   : "hover:text-slate-900"
               }`}
             >
@@ -510,7 +687,11 @@ function AgeGenderDistributionBlock({ data, loading }) {
               onClick={() => setViewMode("percent")}
               className={`rounded-full px-3 py-1 transition ${
                 viewMode === "percent"
-                  ? "bg-[#191e21] text-white shadow-sm"
+                  ? isDark
+                    ? "bg-slate-700 text-white shadow-sm"
+                    : "bg-[#191e21] text-white shadow-sm"
+                  : isDark
+                  ? "hover:text-slate-100"
                   : "hover:text-slate-900"
               }`}
             >
@@ -528,7 +709,13 @@ function AgeGenderDistributionBlock({ data, loading }) {
       ) : (
         <div className="flex flex-col gap-5">
           <div className="grid gap-3 text-sm sm:grid-cols-3">
-            <div className="rounded-2xl  px-4 py-3 shadow-sm">
+            <div
+              className={`rounded-2xl px-4 py-3 shadow-sm ${
+                isDark
+                  ? "bg-slate-800/80 text-slate-100 shadow-slate-900/20"
+                  : "bg-white"
+              }`}
+            >
               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                 Нийт эрэгтэй
               </p>
@@ -539,7 +726,13 @@ function AgeGenderDistributionBlock({ data, loading }) {
                 </span>
               </p>
             </div>
-            <div className="rounded-2xl  px-4 py-3 shadow-sm">
+            <div
+              className={`rounded-2xl px-4 py-3 shadow-sm ${
+                isDark
+                  ? "bg-slate-800/80 text-slate-100 shadow-slate-900/20"
+                  : "bg-white"
+              }`}
+            >
               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                 Нийт эмэгтэй
               </p>
@@ -550,7 +743,13 @@ function AgeGenderDistributionBlock({ data, loading }) {
                 </span>
               </p>
             </div>
-            <div className="rounded-2xl  px-4 py-3 shadow-sm">
+            <div
+              className={`rounded-2xl px-4 py-3 shadow-sm ${
+                isDark
+                  ? "bg-slate-800/80 text-slate-100 shadow-slate-900/20"
+                  : "bg-white"
+              }`}
+            >
               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                 Харьцаа
               </p>
@@ -575,10 +774,16 @@ function AgeGenderDistributionBlock({ data, loading }) {
             return (
               <div
                 key={item.label}
-                className="grid items-center gap-4 text-sm font-semibold text-slate-700 sm:grid-cols-[120px_minmax(0,1fr)_120px]"
+                className={`grid items-center gap-4 text-sm font-semibold sm:grid-cols-[120px_minmax(0,1fr)_120px] ${
+                  isDark ? "text-slate-200" : "text-slate-700"
+                }`}
               >
                 <span className="truncate">{item.label}</span>
-                <div className="relative flex h-6 overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className={`relative flex h-6 overflow-hidden rounded-full ${
+                    isDark ? "bg-slate-800" : "bg-slate-100"
+                  }`}
+                >
                   {item.male > 0 && (
                     <span
                       className="flex items-center justify-start px-3 text-xs font-semibold text-white"
@@ -637,7 +842,31 @@ function AgeGenderDistributionBlock({ data, loading }) {
   );
 }
 
-function HiringCard({ id, name, role, date, avatar, onSelect }) {
+const INDICATOR_COLORS = [
+  "#22c55e",
+  "#eab308",
+  "#0ea5e9",
+  "#f97316",
+  "#a855f7",
+  "#14b8a6",
+  "#f43f5e",
+];
+
+function getIndicatorColor(value) {
+  if (!value) {
+    return INDICATOR_COLORS[0];
+  }
+  const str = String(value);
+  let hash = 0;
+  for (let i = 0; i < str.length; i += 1) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  const index = Math.abs(hash) % INDICATOR_COLORS.length;
+  return INDICATOR_COLORS[index];
+}
+
+function HiringCard({ id, name, role, date, avatar, color, onSelect, isDark }) {
   let initials = "?";
   if (name) {
     initials = name
@@ -655,9 +884,16 @@ function HiringCard({ id, name, role, date, avatar, onSelect }) {
     onSelect(id);
   };
 
+  const indicatorColor = color || getIndicatorColor(id || name || role);
+  const fallbackBg = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
+
   return (
     <li
-      className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 cursor-pointer hover:shadow-md hover:translate-y-[-5px]"
+      className={`flex items-center justify-between gap-4 rounded-2xl border p-4 cursor-pointer transition hover:translate-y-[-5px] hover:shadow-md ${
+        isDark
+          ? "border-slate-700 bg-slate-900/90 text-slate-100 shadow-slate-900/20"
+          : "border-slate-200 bg-white"
+      }`}
       onClick={handleSelect}
       role="button"
       tabIndex={0}
@@ -670,13 +906,28 @@ function HiringCard({ id, name, role, date, avatar, onSelect }) {
     >
       <div className="flex items-center gap-4">
         {avatar ? (
-          <img
-            src={avatar}
-            alt={name}
-            className="h-12 w-12 shrink-0 rounded-full object-cover shadow"
-          />
+          <span
+            className="relative inline-flex h-12 w-12  shrink-0 items-center justify-center rounded-full"
+            style={{
+              border: `2px solid ${indicatorColor}`,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+              backgroundColor: isDark ? "#0f172a" : "#ffffff",
+            }}
+          >
+            <img
+              src={avatar}
+              alt={name}
+              className="h-12 w-12 rounded-full object-cover"
+            />
+          </span>
         ) : (
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-200 text-base font-semibold text-slate-600 shadow">
+          <span
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-semibold shadow text-white"
+            style={{
+              backgroundColor: indicatorColor || fallbackBg,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+            }}
+          >
             {initials}
           </span>
         )}
@@ -687,7 +938,11 @@ function HiringCard({ id, name, role, date, avatar, onSelect }) {
       </div>
       <div className="flex items-center gap-3 text-xs text-slate-500">
         <span>{date}</span>
-        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-400">
+        <span
+          className={`inline-flex h-8 w-8 items-center justify-center rounded-full border text-slate-400 ${
+            isDark ? "border-slate-700" : "border-slate-200"
+          }`}
+        >
           <svg
             aria-hidden="true"
             className="h-3.5 w-3.5"
@@ -716,6 +971,41 @@ function Dashboard() {
   const [error, setError] = useState(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof document === "undefined") {
+      return false;
+    }
+    return document.body.classList.contains("theme-dark");
+  });
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return undefined;
+    }
+    const body = document.body;
+    const syncTheme = () => setIsDark(body.classList.contains("theme-dark"));
+    syncTheme();
+
+    const observer = new MutationObserver(syncTheme);
+    observer.observe(body, { attributes: true, attributeFilter: ["class"] });
+
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleMedia = () => syncTheme();
+    media.addEventListener("change", handleMedia);
+
+    const handleStorage = (event) => {
+      if (event.key === "theme") {
+        syncTheme();
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      observer.disconnect();
+      media.removeEventListener("change", handleMedia);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -780,6 +1070,13 @@ function Dashboard() {
     setSelectedEmployeeId(employeeId);
     setIsProfileOpen(true);
   };
+
+  const todayAttendance = useMemo(() => {
+    if (!summary) {
+      return null;
+    }
+    return summary.attendance?.daily ?? null;
+  }, [summary]);
 
   const closeProfileModal = () => {
     setIsProfileOpen(false);
@@ -898,6 +1195,7 @@ function Dashboard() {
           role: employee.position_title || "Албан тушаал байхгүй",
           date: formatDate(employee.start_date),
           avatar: employee.avatar_url ?? null,
+          color: getIndicatorColor(employee.id ?? employee.employee_code),
         };
       }),
     [employees]
@@ -930,38 +1228,65 @@ function Dashboard() {
     ].filter((item) => item.count > 0);
   }, [summary]);
 
-  const timeMetrics = useMemo(
-    () => [
+  const timeMetrics = useMemo(() => {
+    const today = todayAttendance?.[0] ?? null;
+
+    const onTime = parseCount(today?.on_time ?? today?.onTime);
+    const late = parseCount(today?.late);
+    const absent = parseCount(today?.absent);
+    const overtimeMinutes = parseCount(
+      today?.overtime_minutes ?? today?.overtimeMinutes ?? today?.overtime
+    );
+    const leave = parseCount(today?.leave);
+
+    const fallback = {
+      onTime: parseCount(
+        summary?.attendance?.on_time ?? summary?.attendance?.onTime
+      ),
+      late: parseCount(summary?.attendance?.late),
+      absent: parseCount(summary?.attendance?.absent),
+      overtime: parseCount(summary?.attendance?.overtimeMinutes),
+      leave: parseCount(summary?.attendance?.leave),
+    };
+
+    const metrics = [
       {
-        id: "total",
-        label: "Нийт ажилтан",
-        value: formatNumber(summary?.employees?.total ?? 0),
+        id: "on-time",
+        label: "Цагтаа ирсэн",
+        value:
+          Number.isFinite(onTime) && onTime >= 0 ? onTime : fallback.onTime,
       },
       {
         id: "late",
-        label: "Хоцролт (тоо)",
-        value: formatNumber(summary?.attendance?.late ?? 0),
+        label: "Хоцорсон",
+        value: Number.isFinite(late) && late >= 0 ? late : fallback.late,
       },
       {
         id: "absent",
         label: "Тасалсан",
-        value: formatNumber(summary?.attendance?.absent ?? 0),
+        value:
+          Number.isFinite(absent) && absent >= 0 ? absent : fallback.absent,
       },
       {
         id: "overtime",
         label: "Илүү цаг (мин)",
-        value: formatNumber(summary?.attendance?.overtimeMinutes ?? 0),
+        value:
+          Number.isFinite(overtimeMinutes) && overtimeMinutes >= 0
+            ? overtimeMinutes
+            : fallback.overtime,
       },
       {
         id: "leave",
         label: "Амралт, чөлөө",
-        value: summary?.attendance?.leave
-          ? formatNumber(summary.attendance.leave)
-          : "--",
+        value: Number.isFinite(leave) && leave >= 0 ? leave : fallback.leave,
       },
-    ],
-    [summary]
-  );
+    ];
+
+    return metrics.map((metric) => ({
+      ...metric,
+      value: Number.isFinite(metric.value) ? formatNumber(metric.value) : "--",
+    }));
+  }, [summary, todayAttendance]);
 
   const documentMetrics = useMemo(
     () => [
@@ -1081,9 +1406,15 @@ function Dashboard() {
   }, [summary]);
 
   return (
-    <section className="px-6 pb-12">
+    <section className={`px-6 pb-12 ${isDark ? "text-slate-100" : ""}`}>
       {error && (
-        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div
+          className={`mb-4 rounded-2xl border p-4 text-sm ${
+            isDark
+              ? "border-red-900/50 bg-red-900/20 text-red-200"
+              : "border-red-200 bg-red-50 text-red-700"
+          }`}
+        >
           {error}
         </div>
       )}
@@ -1101,52 +1432,96 @@ function Dashboard() {
                   icon={item.icon}
                   loading={loading && !summary}
                   to={item.link}
+                  isDark={isDark}
                 />
               ))}
             </div>
             <WorkStatusChart
               data={workStatusData}
               loading={loading && !summary}
+              isDark={isDark}
             />
           </div>
           <AgeGenderDistributionBlock
             data={ageGenderDistribution}
             loading={loading && !summary}
+            isDark={isDark}
           />
         </div>
-        <aside className="rounded-[30px] bg-white p-6 shadow-lg">
-          <header className="mb-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900">
-                Саяхан нэмэгдсэн ажилтан
-              </h2>
+        <aside
+          className={`rounded-[30px] p-6 shadow-lg ${
+            isDark
+              ? "border border-slate-700 bg-slate-900/90 text-slate-100 shadow-slate-900/30"
+              : "bg-white text-slate-900"
+          }`}
+        >
+          <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Сүүлд нэмэгдсэн
+              </p>
+              <h2 className="text-2xl font-bold">Ажилчид</h2>
             </div>
-            <button
-              type="button"
-              className="flex h-6 w-6 items-center justify-center rounded-full  bg-[#191E21] text-white cursor-pointer"
-              aria-label="More options"
-            >
-              <span className="text-m">•••</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold bg-linear-to-r from-sky-500 to-indigo-500 text-slate-100">
+                {pipeline.length}
+              </span>
+              <Link
+                to="/employees"
+                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition ${
+                  isDark
+                    ? "border border-slate-700 text-slate-100 hover:bg-slate-800"
+                    : "border border-slate-200 text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                Бүгдийг харах
+                <svg
+                  aria-hidden="true"
+                  className="h-3.5 w-3.5"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M4 2.5 7.5 6 4 9.5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </Link>
+            </div>
           </header>
+
           {loading && !employees.length ? (
-            <span className="text-sm text-slate-500">
-              Өгөгдөл татаж байна...
-            </span>
+            <div className="flex flex-col gap-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div
+                  key={index}
+                  className={`h-16 animate-pulse rounded-2xl ${
+                    isDark ? "bg-slate-800/70" : "bg-slate-100"
+                  }`}
+                />
+              ))}
+            </div>
           ) : pipeline.length === 0 ? (
             <span className="text-sm text-slate-500">
               Саяхан нэмэгдсэн ажилчид алга.
             </span>
           ) : (
-            <ul className="flex flex-col gap-3 ">
-              {pipeline.map((candidate) => (
-                <HiringCard
-                  key={candidate.id}
-                  {...candidate}
-                  onSelect={openProfileModal}
-                />
-              ))}
-            </ul>
+            <div className="flex flex-col gap-3">
+              <ul className="flex flex-col gap-3">
+                {pipeline.slice(0, 5).map((candidate) => (
+                  <HiringCard
+                    key={candidate.id}
+                    {...candidate}
+                    onSelect={openProfileModal}
+                    isDark={isDark}
+                  />
+                ))}
+              </ul>
+            </div>
           )}
         </aside>
       </div>
@@ -1158,6 +1533,7 @@ function Dashboard() {
         taskSummary={taskSummaryCards}
         attendanceBreakdown={attendanceBreakdown}
         tasksByOwner={tasksByOwner}
+        isDark={isDark}
       />
       <ProfileModal
         isOpen={isProfileOpen}

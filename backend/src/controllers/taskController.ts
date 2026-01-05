@@ -64,7 +64,7 @@ export const listWorkspaces = asyncHandler(async (req, res) => {
 export const createWorkspace = asyncHandler(async (req, res) => {
   const { name, description } = req.body;
   if (!name) {
-    return res.status(400).json({ message: "Name is required" });
+    return res.status(400).json({ message: "Гарчиг шаардлагатай" });
   }
 
   const existing = await pool.query(
@@ -72,7 +72,7 @@ export const createWorkspace = asyncHandler(async (req, res) => {
     [name]
   );
   if (existing.rows.length > 0) {
-    return res.status(400).json({ message: "Workspace name already in use" });
+    return res.status(400).json({ message: "Workspace нэр давхцаж байна" });
   }
 
   const insertResult = await pool.query(
@@ -108,7 +108,7 @@ export const updateWorkspace = asyncHandler(async (req, res) => {
   }
 
   if (updates.length === 0) {
-    return res.status(400).json({ message: "No fields to update" });
+    return res.status(400).json({ message: "Мэдээлэл дутуу байна" });
   }
 
   updates.push(`updated_at = now()`);
@@ -122,7 +122,7 @@ export const updateWorkspace = asyncHandler(async (req, res) => {
   );
 
   if (result.rows.length === 0) {
-    return res.status(404).json({ message: "Workspace not found" });
+    return res.status(404).json({ message: "Workspace олдсонгүй" });
   }
 
   const workspace = await pool.query(
@@ -141,7 +141,7 @@ export const deleteWorkspace = asyncHandler(async (req, res) => {
   );
 
   if (result.rowCount === 0) {
-    return res.status(404).json({ message: "Workspace not found" });
+    return res.status(404).json({ message: "Workspace олдсонгүй" });
   }
   return res.status(204).end();
 });
@@ -330,7 +330,7 @@ export const getBoard = asyncHandler(async (req, res) => {
   );
 
   if (result.rows.length === 0) {
-    return res.status(404).json({ message: "Board not found" });
+    return res.status(404).json({ message: "Самбар олдсонгүй" });
   }
 
   return res.json({ board: result.rows[0] });
@@ -339,7 +339,7 @@ export const getBoard = asyncHandler(async (req, res) => {
 export const createBoard = asyncHandler(async (req, res) => {
   const { workspaceId, name, description } = req.body;
   if (!workspaceId || !name) {
-    return res.status(400).json({ message: "Missing required fields" });
+    return res.status(400).json({ message: "Мэдээлэл дутуу байна" });
   }
 
   const workspaceCheck = await pool.query(
@@ -347,7 +347,7 @@ export const createBoard = asyncHandler(async (req, res) => {
     [workspaceId]
   );
   if (workspaceCheck.rows.length === 0) {
-    return res.status(400).json({ message: "Workspace not found" });
+    return res.status(400).json({ message: "Workspace олдсонгүй" });
   }
 
   const insertResult = await pool.query(
@@ -385,7 +385,7 @@ export const updateBoard = asyncHandler(async (req, res) => {
   }
 
   if (updates.length === 0) {
-    return res.status(400).json({ message: "No fields to update" });
+    return res.status(400).json({ message: "Мэдээлэл дутуу байна" });
   }
 
   updates.push(`updated_at = now()`);
@@ -399,7 +399,7 @@ export const updateBoard = asyncHandler(async (req, res) => {
   );
 
   if (result.rows.length === 0) {
-    return res.status(404).json({ message: "Board not found" });
+    return res.status(404).json({ message: "Самбар олдсонгүй" });
   }
 
   const board = await pool.query(
@@ -420,7 +420,7 @@ export const deleteBoard = asyncHandler(async (req, res) => {
   );
 
   if (result.rowCount === 0) {
-    return res.status(404).json({ message: "Board not found" });
+    return res.status(404).json({ message: "Самбар олдсонгүй" });
   }
 
   return res.status(204).end();
@@ -449,7 +449,7 @@ export const addBoardMember = asyncHandler(async (req, res) => {
   const { employeeId } = req.body;
   const boardId = req.params["id"];
   if (!employeeId) {
-    return res.status(400).json({ message: "employeeId is required" });
+    return res.status(400).json({ message: "Ажилтаны ID шаардлагатай" });
   }
 
   const employeeExists = await pool.query(
@@ -457,7 +457,7 @@ export const addBoardMember = asyncHandler(async (req, res) => {
     [employeeId]
   );
   if (employeeExists.rows.length === 0) {
-    return res.status(400).json({ message: "Employee not found" });
+    return res.status(400).json({ message: "Ажилтан олдсонгүй" });
   }
 
   await pool.query(
@@ -626,7 +626,7 @@ export const createTask = asyncHandler(async (req, res) => {
     : [];
 
   if (!normalizedBoardId || !normalizedTitle) {
-    return res.status(400).json({ message: "Missing required fields" });
+    return res.status(400).json({ message: "Мэдээлэл дутуу байна" });
   }
 
   const boardExists = await pool.query(
@@ -634,7 +634,7 @@ export const createTask = asyncHandler(async (req, res) => {
     [normalizedBoardId]
   );
   if (boardExists.rows.length === 0) {
-    return res.status(400).json({ message: "Board not found" });
+    return res.status(400).json({ message: "Самбар олдсонгүй" });
   }
 
   const statusGroupCheck = normalizedStatusGroupId
@@ -645,7 +645,7 @@ export const createTask = asyncHandler(async (req, res) => {
     : { rows: [{ exists: true }] };
 
   if (normalizedStatusGroupId && statusGroupCheck.rows.length === 0) {
-    return res.status(400).json({ message: "Invalid status group" });
+    return res.status(400).json({ message: "Буруу бүлэг" });
   }
 
   const insertResult = await pool.query(
@@ -716,7 +716,7 @@ export const updateTask = asyncHandler(async (req, res) => {
       [statusGroupId]
     );
     if (statusGroupCheck.rows.length === 0) {
-      return res.status(400).json({ message: "Invalid status group" });
+      return res.status(400).json({ message: "Буруу бүлэг" });
     }
   }
 
@@ -761,7 +761,7 @@ export const updateTask = asyncHandler(async (req, res) => {
   }
 
   if (updates.length === 0 && typeof assigneeIds === "undefined") {
-    return res.status(400).json({ message: "No fields to update" });
+    return res.status(400).json({ message: "Мэдээлэл дутуу байна" });
   }
 
   if (updates.length > 0) {
@@ -776,7 +776,7 @@ export const updateTask = asyncHandler(async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Task not found" });
+      return res.status(404).json({ message: "Task олдсонгүй" });
     }
   }
 
@@ -811,7 +811,7 @@ export const updateTask = asyncHandler(async (req, res) => {
   );
 
   if (task.rows.length === 0) {
-    return res.status(404).json({ message: "Task not found" });
+    return res.status(404).json({ message: "Task олдсонгүй" });
   }
 
   return res.json({ task: task.rows[0] });
@@ -825,7 +825,7 @@ export const deleteTask = asyncHandler(async (req, res) => {
   );
 
   if (result.rowCount === 0) {
-    return res.status(404).json({ message: "Task not found" });
+    return res.status(404).json({ message: "Task олдсонгүй" });
   }
 
   return res.status(204).end();
@@ -847,7 +847,7 @@ export const createStatusGroup = asyncHandler(async (req, res) => {
   const boardId = req.params["boardId"];
   const { name, position = 0 } = req.body;
   if (!name) {
-    return res.status(400).json({ message: "Name is required" });
+    return res.status(400).json({ message: "Нэр шаардлагатай" });
   }
 
   const insertResult = await pool.query(
@@ -878,7 +878,7 @@ export const updateStatusGroup = asyncHandler(async (req, res) => {
   }
 
   if (updates.length === 0) {
-    return res.status(400).json({ message: "No fields to update" });
+    return res.status(400).json({ message: "Мэдээлэл дутуу байна" });
   }
 
   values.push(req.params["statusGroupId"]);
@@ -891,7 +891,7 @@ export const updateStatusGroup = asyncHandler(async (req, res) => {
   );
 
   if (result.rows.length === 0) {
-    return res.status(404).json({ message: "Status group not found" });
+    return res.status(404).json({ message: "Бүлэг олдсонгүй" });
   }
 
   return res.json({ statusGroup: result.rows[0] });
@@ -903,7 +903,7 @@ export const deleteStatusGroup = asyncHandler(async (req, res) => {
     [req.params["statusGroupId"]]
   );
   if (result.rowCount === 0) {
-    return res.status(404).json({ message: "Status group not found" });
+    return res.status(404).json({ message: "Бүлэг олдсонгүй" });
   }
   return res.status(204).end();
 });
@@ -955,7 +955,7 @@ export const addTaskActivity = asyncHandler(async (req, res) => {
   const activityMessage = trimmedMessage || trimmedDetail;
 
   if (!activityMessage) {
-    return res.status(400).json({ message: "Message is required" });
+    return res.status(400).json({ message: "Мессеж шаардлагатай" });
   }
 
   const resolvedAction = (action || "comment").trim() || "comment";

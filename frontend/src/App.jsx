@@ -24,7 +24,7 @@ function AppLayout() {
   return (
     <div className="flex min-h-screen ">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto ">
+      <main className="relative flex-1 max-h-screen overflow-y-auto">
         <Header />
 
         <Outlet />
