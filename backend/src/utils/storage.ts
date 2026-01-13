@@ -14,6 +14,7 @@ export const ensureUploadDir = (relativePath: string): string => {
 export const initializeUploadStorage = (): void => {
   ensureUploadDir("documents");
   ensureUploadDir("cvs");
+  ensureUploadDir("employees");
 };
 
 export const resolveFileUrl = (subDir: string, filename: string): string => {

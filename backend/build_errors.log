@@ -1,0 +1,52 @@
+src/controllers/documentController.ts(117,3): error TS2345: Argument of type '(req: AuthenticatedRequest, res: Response) => Promise<Response<any, Record<string, any>>>' is not assignable to parameter of type 'Handler'.
+  Types of parameters 'req' and 'req' are incompatible.
+    Type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' is not assignable to type 'AuthenticatedRequest'.
+      Type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' is not assignable to type '{ user?: { id: number; } | undefined; }'.
+        Types of property 'user' are incompatible.
+          Type 'User | undefined' is not assignable to type '{ id: number; } | undefined'.
+            Type 'User' is not assignable to type '{ id: number; }'.
+              Types of property 'id' are incompatible.
+                Type 'number | undefined' is not assignable to type 'number'.
+                  Type 'undefined' is not assignable to type 'number'.
+src/routes/attendance.ts(13,12): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>' is not assignable to parameter of type 'PathParams'.
+src/routes/auth.ts(18,19): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>' is not assignable to parameter of type 'RequestHandlerParams<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+      Type '(req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>' is not assignable to type 'RequestHandler<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+        Types of parameters 'req' and 'req' are incompatible.
+          Type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' is not assignable to type 'AuthenticatedRequest'.
+            Types of property 'user' are incompatible.
+              Type 'User | undefined' is not assignable to type 'AuthenticatedUser | undefined'.
+                Type 'User' is missing the following properties from type 'AuthenticatedUser': email, firstName, lastName, roleId, and 2 more.
+src/routes/auth.ts(19,24): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>' is not assignable to parameter of type 'RequestHandlerParams<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+      Type '(req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>' is not assignable to type 'RequestHandler<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+        Types of parameters 'req' and 'req' are incompatible.
+          Type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' is not assignable to type 'AuthenticatedRequest'.
+            Types of property 'user' are incompatible.
+              Type 'User | undefined' is not assignable to type 'AuthenticatedUser | undefined'.
+                Type 'User' is missing the following properties from type 'AuthenticatedUser': email, firstName, lastName, roleId, and 2 more.
+src/routes/boards.ts(21,12): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>' is not assignable to parameter of type 'PathParams'.
+src/routes/dashboard.ts(8,12): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>' is not assignable to parameter of type 'PathParams'.
+src/routes/documents.ts(16,12): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>' is not assignable to parameter of type 'PathParams'.
+src/routes/employees.ts(16,12): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>' is not assignable to parameter of type 'PathParams'.
+src/routes/tasks.ts(16,12): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>' is not assignable to parameter of type 'PathParams'.
+src/routes/users.ts(14,12): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>' is not assignable to parameter of type 'PathParams'.
+src/routes/workspaces.ts(13,12): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>' is not assignable to parameter of type 'PathParams'.

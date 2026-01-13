@@ -64,18 +64,36 @@ SELECT e.employee_id AS id,
        e.start_date,
        e.years_of_service,
        e.cv_url,
+       e.photo_url,
        e.created_at,
        e.updated_at,
        COALESCE(agg.total_late, 0) AS total_late,
        COALESCE(agg.total_absent, 0) AS total_absent,
-       COALESCE(agg.total_overtime_minutes, 0) AS total_overtime_minutes
+       COALESCE(agg.total_overtime_minutes, 0) AS total_overtime_minutes,
+       s.salary_id,
+       s.salary_amount,
+       s.kpi,
+       s.salary_bonus,
+       s.overtime AS salary_overtime,
+       s.penalty,
+       s.salary_first,
+       s.salary_last,
+       s.salary_date_first,
+       s.salary_date_last
 FROM employees e
 LEFT JOIN attendance_employee_aggregates agg ON agg.employee_id = e.employee_id
+LEFT JOIN LATERAL (
+  SELECT * FROM salaries
+  WHERE employee_id = e.employee_id
+  ORDER BY created_at DESC
+  LIMIT 1
+) s ON true
 `;
 
 const mapEmployee = (row: any) => ({
   ...row,
   cv_url: toAbsoluteFileUrl(row?.cv_url ?? null),
+  photo_url: toAbsoluteFileUrl(row?.photo_url ?? null),
 });
 
 const buildFilters = ({
@@ -440,10 +458,48 @@ export const deleteEmployee = asyncHandler(
   }
 );
 
+export const updateEmployeePhoto = asyncHandler(
+  async (req: AuthedRequest, res: Response) => {
+    const employeeId = req.params["id"];
+    const uploadedPhoto = (req as AuthedRequest).file;
+
+    if (!employeeId) {
+      return res.status(400).json({ message: "Ажилтанын ID Оруулна уу." });
+    }
+
+    if (!uploadedPhoto) {
+      return res.status(400).json({ message: "Зургийн файл оруулна уу." });
+    }
+
+    const photoUrl = resolveFileUrl("employees", uploadedPhoto.filename);
+
+    const result = await pool.query(
+      `UPDATE employees
+       SET photo_url = $1, updated_by = $3, updated_at = now()
+       WHERE employee_id = $2 AND deleted_at IS NULL
+       RETURNING employee_id AS id`,
+      [photoUrl, employeeId, req.user?.id || null]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "Ажилтан олдсонгүй" });
+    }
+
+    const employee = await pool.query(
+      `${baseSelect}
+       WHERE e.employee_id = $1`,
+      [result.rows[0].id]
+    );
+
+    return res.json({ employee: mapEmployee(employee.rows[0]) });
+  }
+);
+
 export default {
   listEmployees,
   getEmployee,
   createEmployee,
   updateEmployee,
+  updateEmployeePhoto,
   deleteEmployee,
 };

@@ -3,9 +3,9 @@ import { Link } from "react-router-dom";
 const NotFound = () => {
   return (
     <div className="min-h-screen  flex flex-col font-sans antialiased text-[#223345]">
-      {/* Main Content */}
+
       <main className="flex-1 max-w-6xl mx-auto w-full flex flex-col md:flex-row items-center justify-center px-6 gap-12">
-        {/* Left Side: Text Content */}
+      
         <div className="flex-1 space-y-8 text-center md:text-left">
           <div className="space-y-4">
             <h1 className="text-4xl md:text-5xl font-extrabold text-[#223345]">
@@ -41,18 +41,15 @@ const NotFound = () => {
           </div>
         </div>
 
-        {/* Right Side: Illustration */}
         <div className="flex-1 relative w-full max-w-lg">
-          {/* Recreating the Green Circle and Illustration Layout */}
           <div className="relative">
-            {/* Illustration Asset */}
             <img
               src="https://img.freepik.com/free-vector/404-error-with-tired-person-concept-illustration_114360-7889.jpg"
               alt="404 Illustration"
               className="w-full h-auto mix-blend-multiply opacity-90"
             />
 
-            {/* Decorative elements (floating envelopes/clouds style) */}
+          
             <div className="hidden md:block">
               <div className="absolute top-0 right-10 w-24 h-8 bg-white/40 rounded-full blur-xl"></div>
               <div className="absolute bottom-10 left-0 w-20 h-12 bg-[#223345]/5 rounded-lg rotate-12"></div>
@@ -61,7 +58,7 @@ const NotFound = () => {
         </div>
       </main>
 
-      {/* Footer Spacer */}
+      
       <footer className="h-20"></footer>
     </div>
   );

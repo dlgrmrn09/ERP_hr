@@ -21,8 +21,7 @@ const composeFullName = ({
   return code || "Нэр тодорхойгүй";
 };
 
-const normalizeOption = (value) =>
-  typeof value === "string" && value.trim() !== "" ? value : null;
+
 
 const formatContact = (value) =>
   value && value.trim() !== "" ? value : "Мэдээлэл байхгүй";
@@ -93,14 +92,14 @@ const selectAvatarColors = (employee) => {
 };
 
 const SORT_FIELDS = [
-  { value: "last_name", label: "Овгоор" },
   { value: "first_name", label: "Нэрээр" },
   { value: "employment_status", label: "Статусаар" },
   { value: "start_date", label: "Эхэлсэн он сараар" },
-  { value: "created_at", label: "Нэмсэн огноо" },
+  { value: "created_at", label: "Ажилд орсон огноо" },
 ];
 
 const MAX_CV_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
 const FORM_INITIAL_STATE = {
   employeeCode: "",
@@ -113,6 +112,8 @@ const FORM_INITIAL_STATE = {
   gender: "",
   age: "",
   startDate: new Date().toISOString().slice(0, 10),
+  photoUrl: "",
+  photoFile: null,
   cvUrl: "",
   cvFile: null,
 };
@@ -145,6 +146,8 @@ const normalizeEmployeeForForm = (employee) => ({
       ? String(employee.age)
       : "",
   startDate: employee.start_date ? employee.start_date.slice(0, 10) : "",
+  photoUrl: employee.photo_url ?? "",
+  photoFile: null,
   cvUrl: employee.cv_url ?? "",
   cvFile: null,
 });
@@ -583,6 +586,9 @@ function EmployeeCard({
   const email = formatContact(employee.email);
   const initials = buildInitials(employee);
   const avatarColors = selectAvatarColors(employee);
+  const hasPhoto = Boolean(employee.photo_url);
+  const photoUrl = hasPhoto ? resolveFileUrl(employee.photo_url) : "";
+  const [photoLoadFailed, setPhotoLoadFailed] = useState(false);
   const hasCv = Boolean(employee.cv_url);
   const startDateLabel = (() => {
     if (!employee.start_date) {
@@ -606,6 +612,10 @@ function EmployeeCard({
     }
   };
 
+  useEffect(() => {
+    setPhotoLoadFailed(false);
+  }, [photoUrl]);
+
   return (
     <article
       className={`group relative flex flex-col gap-4 overflow-hidden rounded-3xl border p-6 text-slate-700 shadow-[0_24px_60px_rgba(15,23,42,0.08)] transition hover:-translate-y-1.5 focus-visible:outline-none focus-visible:ring-2 ${
@@ -626,14 +636,26 @@ function EmployeeCard({
         aria-hidden="true"
       ></span>
       <div className="flex items-start gap-4">
-        <span
-          className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-lg font-semibold uppercase shadow-[0_12px_30px_rgba(15,23,42,0.18)] ring-4 ${
-            isDark ? "ring-slate-800" : "ring-white"
-          }`}
-          style={{ backgroundColor: avatarColors.bg, color: avatarColors.fg }}
-        >
-          {initials}
-        </span>
+        {hasPhoto && !photoLoadFailed ? (
+          <img
+            src={photoUrl}
+            alt={`${fullName} зураг`}
+            loading="lazy"
+            className={`h-16 w-16 shrink-0 rounded-2xl object-cover shadow-[0_12px_30px_rgba(15,23,42,0.18)] ring-4 ${
+              isDark ? "ring-slate-800" : "ring-white"
+            }`}
+            onError={() => setPhotoLoadFailed(true)}
+          />
+        ) : (
+          <span
+            className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-lg font-semibold uppercase shadow-[0_12px_30px_rgba(15,23,42,0.18)] ring-4 ${
+              isDark ? "ring-slate-800" : "ring-white"
+            }`}
+            style={{ backgroundColor: avatarColors.bg, color: avatarColors.fg }}
+          >
+            {initials}
+          </span>
+        )}
         <div className="flex flex-1 flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <p
@@ -893,13 +915,35 @@ function EmployeeFormModal({
   submitError,
   isDark = false,
 }) {
-  if (!open) {
-    return null;
-  }
-
   // Guard against undefined props to keep the form stable.
   const safeValues = values || FORM_INITIAL_STATE;
   const safeErrors = errors || {};
+
+  const hasExistingPhoto = Boolean(safeValues.photoUrl);
+  const selectedPhotoLabel = safeValues.photoFile
+    ? safeValues.photoFile.name
+    : hasExistingPhoto
+    ? "Одоогийн зураг"
+    : "Зураг сонгогдоогүй";
+  const existingPhotoUrl = resolveFileUrl(safeValues.photoUrl);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState("");
+
+  useEffect(() => {
+    if (!safeValues.photoFile) {
+      setPhotoPreviewUrl("");
+      return undefined;
+    }
+
+    const objectUrl = URL.createObjectURL(safeValues.photoFile);
+    setPhotoPreviewUrl(objectUrl);
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [safeValues.photoFile]);
+
+  if (!open) {
+    return null;
+  }
 
   const hasExistingCv = Boolean(safeValues.cvUrl);
   const selectedCvLabel = safeValues.cvFile
@@ -908,6 +952,12 @@ function EmployeeFormModal({
     ? "Одоогийн CV"
     : "CV сонгогдоогүй";
   const isBusy = Boolean(isSubmitting);
+
+  const displayPhotoUrl = photoPreviewUrl || existingPhotoUrl;
+
+  const handleClearSelectedPhoto = () => {
+    onChange("photoFile", null);
+  };
 
   const handleClearCv = () => {
     onChange("cvFile", null);
@@ -921,6 +971,14 @@ function EmployeeFormModal({
         return;
       }
       onChange("cvUrl", "");
+      onChange(field, file);
+      return;
+    }
+    if (field === "photoFile") {
+      const file = event.target.files?.[0] ?? null;
+      if (!file) {
+        return;
+      }
       onChange(field, file);
       return;
     }
@@ -1196,6 +1254,125 @@ function EmployeeFormModal({
                 />
                 {renderError("startDate")}
               </label>
+
+              <label
+                className={`flex flex-col gap-2 text-sm font-medium ${
+                  isDark ? "text-slate-200" : "text-slate-600"
+                }`}
+              >
+                <span>Профайл зураг</span>
+                <div
+                  className={`flex flex-col gap-3 rounded-2xl border p-4 shadow-sm ${
+                    isDark
+                      ? "border-slate-700 bg-slate-900"
+                      : "border-slate-200 bg-slate-50"
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label
+                      className={`relative inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold shadow-sm transition focus-within:ring-2 ${
+                        isDark
+                          ? "border-slate-600 bg-slate-800 text-slate-100 hover:border-slate-400 focus-within:ring-slate-700"
+                          : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 focus-within:ring-sky-100"
+                      }`}
+                    >
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFieldChange("photoFile")}
+                        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                        aria-label="Профайл зураг сонгох"
+                      />
+                      Зураг сонгох
+                    </label>
+
+                    {safeValues.photoFile ? (
+                      <span
+                        className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold shadow-sm ${
+                          isDark
+                            ? "border border-slate-700 bg-slate-800 text-slate-100"
+                            : "bg-white text-slate-700"
+                        }`}
+                      >
+                        <span
+                          className="truncate max-w-40"
+                          title={selectedPhotoLabel}
+                        >
+                          {selectedPhotoLabel}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleClearSelectedPhoto}
+                          className={`rounded-full px-2 py-1 text-[11px] font-semibold transition ${
+                            isDark
+                              ? "bg-slate-700 text-slate-100 hover:bg-slate-600"
+                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          }`}
+                        >
+                          Болих
+                        </button>
+                      </span>
+                    ) : hasExistingPhoto ? (
+                      <span
+                        className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold shadow-sm ${
+                          isDark
+                            ? "border border-slate-700 bg-slate-800 text-slate-100"
+                            : "bg-white text-slate-700"
+                        }`}
+                      >
+                        {selectedPhotoLabel}
+                      </span>
+                    ) : (
+                      <span
+                        className={`text-xs font-medium ${
+                          isDark ? "text-slate-400" : "text-slate-500"
+                        }`}
+                      >
+                        Зураг сонгоогүй байна
+                      </span>
+                    )}
+                  </div>
+
+                  <div
+                    className={`flex flex-wrap items-center gap-3 text-[12px] ${
+                      isDark ? "text-slate-400" : "text-slate-500"
+                    }`}
+                  >
+                    <span
+                      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 font-semibold shadow-sm ${
+                        isDark
+                          ? "border border-slate-700 bg-slate-800 text-slate-200"
+                          : "bg-white text-slate-600"
+                      }`}
+                    >
+                      Зураг, 5MB хүртэл
+                    </span>
+                    {isEdit && existingPhotoUrl ? (
+                      <a
+                        href={existingPhotoUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`text-xs font-semibold underline ${
+                          isDark ? "text-sky-300" : "text-sky-700"
+                        }`}
+                      >
+                        Одоогийн зургийг нээх
+                      </a>
+                    ) : null}
+                  </div>
+
+                  {displayPhotoUrl ? (
+                    <img
+                      src={displayPhotoUrl}
+                      alt="Профайл зураг"
+                      className={`h-32 w-32 rounded-2xl border object-cover ${
+                        isDark ? "border-slate-700" : "border-slate-200"
+                      }`}
+                    />
+                  ) : null}
+                </div>
+              </label>
+
               <label
                 className={`flex flex-col gap-2 text-sm font-medium ${
                   isDark ? "text-slate-200" : "text-slate-600"
@@ -1417,7 +1594,7 @@ function Employees() {
         }
 
         if (selectedDepartment) {
-          baseParams.department = selectedDepartment;
+          baseParams.position = selectedDepartment;
         }
 
         if (debouncedSearch) {
@@ -1429,6 +1606,7 @@ function Employees() {
           signal: controller.signal,
         });
 
+        console.log("Fetched employees:", response?.data);
         if (!isMounted) {
           return;
         }
@@ -1674,6 +1852,17 @@ function Employees() {
       }
     }
 
+    if (currentValues.photoFile) {
+      if (!currentValues.photoFile.type?.startsWith?.("image/")) {
+        setSubmitError("Профайл зураг нь зураг (image/*) файл байх ёстой.");
+        return;
+      }
+      if (currentValues.photoFile.size > MAX_PHOTO_SIZE_BYTES) {
+        setSubmitError("Профайл зураг 5MB-аас бага байх ёстой.");
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     setSubmitError(null);
 
@@ -1700,11 +1889,31 @@ function Employees() {
         formData.append("cvUrl", payload.cvUrl);
       }
 
+      let response;
       if (editingEmployee) {
-        await apiClient.patch(`/employees/${editingEmployee.id}`, formData);
+        response = await apiClient.patch(
+          `/employees/${editingEmployee.id}`,
+          formData
+        );
       } else {
-        await apiClient.post("/employees", formData);
+        response = await apiClient.post("/employees", formData);
       }
+
+      const savedEmployeeId =
+        response?.data?.employee?.id ?? editingEmployee?.id;
+
+      if (currentValues.photoFile) {
+        if (!savedEmployeeId) {
+          throw new Error("Employee ID missing for photo upload");
+        }
+        const photoFormData = new FormData();
+        photoFormData.append("photo", currentValues.photoFile);
+        await apiClient.patch(
+          `/employees/${savedEmployeeId}/photo`,
+          photoFormData
+        );
+      }
+
       closeForm();
       triggerRefresh();
     } catch (err) {

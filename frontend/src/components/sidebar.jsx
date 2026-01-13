@@ -18,7 +18,7 @@ const navItems = [
   { label: "Ажилчид", icon: EmployeeIcon, path: "/employees" },
   { label: "Бичиг баримт", icon: DocumentIcon, path: "/documents" },
   { label: "Ажлын Төлөвлөгөө", icon: TaskIcon, path: "/tasks" },
-  { label: "Цалин Бодох", icon: MoneyIcon, path: "/salary-calculation" },
+  { label: "Цалин ", icon: MoneyIcon, path: "/salary-calculation" },
 ];
 
 const taskSubnavItems = [

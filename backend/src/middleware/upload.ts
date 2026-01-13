@@ -6,6 +6,7 @@ import { ensureUploadDir } from "../utils/storage";
 
 const pdfMimeType = "application/pdf";
 const maxFileSizeBytes = 10 * 1024 * 1024; // 10 MB
+const maxImageSizeBytes = 5 * 1024 * 1024; // 5 MB
 
 const buildStorage = (subDir: string) => {
   const destination = ensureUploadDir(subDir);
@@ -31,6 +32,18 @@ const fileFilter = (
   cb(null, true);
 };
 
+const imageFileFilter = (
+  _req: Request,
+  file: Express.Multer.File,
+  cb: FileFilterCallback
+) => {
+  if (!file.mimetype || !file.mimetype.startsWith("image/")) {
+    cb(new Error("Зөвхөн зураг (image/*) файл оруулна уу."));
+    return;
+  }
+  cb(null, true);
+};
+
 const createUploader = (subDir: string) =>
   multer({
     storage: buildStorage(subDir),
@@ -38,7 +51,15 @@ const createUploader = (subDir: string) =>
     limits: { fileSize: maxFileSizeBytes },
   });
 
+const createImageUploader = (subDir: string) =>
+  multer({
+    storage: buildStorage(subDir),
+    fileFilter: imageFileFilter,
+    limits: { fileSize: maxImageSizeBytes },
+  });
+
 export const documentUpload = createUploader("documents");
 export const cvUpload = createUploader("cvs");
+export const employeePhotoUpload = createImageUploader("employees");
 
-export default { documentUpload, cvUpload };
+export default { documentUpload, cvUpload, employeePhotoUpload };

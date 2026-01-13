@@ -5,27 +5,27 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS citext;
 
 
-CREATE TABLE roles (
+CREATE TABLE IF NOT EXISTS "roles" (
   role_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT UNIQUE NOT NULL,
   description TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE permissions (
+CREATE TABLE IF NOT EXISTS permissions (
   permission_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   module TEXT NOT NULL,
   action TEXT NOT NULL,
   UNIQUE (module, action)
 );
 
-CREATE TABLE role_permissions (
+CREATE TABLE IF NOT EXISTS role_permissions (
   role_id UUID NOT NULL REFERENCES roles(role_id) ON DELETE CASCADE,
   permission_id UUID NOT NULL REFERENCES permissions(permission_id) ON DELETE CASCADE,
   PRIMARY KEY (role_id, permission_id)
 );
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email CITEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
@@ -38,14 +38,14 @@ CREATE TABLE users (
 );
 
 -- Employees
-CREATE TABLE employees (
+CREATE TABLE IF NOT EXISTS employees (
   employee_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   employee_code TEXT UNIQUE NOT NULL,
   user_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
   first_name TEXT NOT NULL,
   last_name TEXT NOT NULL,
   email CITEXT UNIQUE NOT NULL,
-  phone_number TEXT,
+  phone_number TEXT UNIQUE,
   gender VARCHAR(255),
   age INT,
   position_title TEXT,
@@ -53,6 +53,26 @@ CREATE TABLE employees (
   start_date DATE,
   years_of_service NUMERIC(5, 2),
   cv_url TEXT,
+  photo_url TEXT,
+  created_by UUID REFERENCES users(user_id),
+  updated_by UUID REFERENCES users(user_id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS salaries (
+  salary_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  employee_id UUID NOT NULL REFERENCES employees(employee_id),
+  salary_amount NUMERIC(10, 2),
+  kpi NUMERIC(5, 2),
+  salary_bonus NUMERIC(10, 2),
+  overtime NUMERIC(10, 2),
+  penalty NUMERIC(10, 2),
+  salary_first NUMERIC(10, 2),
+  salary_last NUMERIC(10, 2),
+  salary_date_first DATE NOT NULL,
+  salary_date_last DATE NOT NULL,
   created_by UUID REFERENCES users(user_id),
   updated_by UUID REFERENCES users(user_id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -86,7 +106,7 @@ FOR EACH ROW
 EXECUTE FUNCTION employees_set_years_of_service();
 
 -- School profile information
-CREATE TABLE school_profile (
+CREATE TABLE IF NOT EXISTS school_profile (
   school_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT UNIQUE NOT NULL,
   type TEXT NOT NULL,
@@ -105,7 +125,7 @@ VALUES (
 ON CONFLICT (name) DO NOTHING;
 
 -- Attendance
-CREATE TABLE attendance_records (
+CREATE TABLE IF NOT EXISTS attendance_records (
   attendance_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   employee_id UUID NOT NULL REFERENCES employees(employee_id),
   attendance_date DATE NOT NULL,
@@ -137,7 +157,7 @@ INSERT INTO document_categories (name)
 VALUES ('Тушаал'), ('АБХ'), ('Дотоод журам')
 ON CONFLICT (name) DO NOTHING;
 
-CREATE TABLE documents (
+CREATE TABLE  IF NOT EXISTSdocuments (
   document_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   category_id UUID NOT NULL REFERENCES document_categories(category_id),
   title TEXT NOT NULL,
@@ -155,7 +175,7 @@ CREATE INDEX documents_search_idx ON documents USING gin (
 );
 
 -- Task Management
-CREATE TABLE workspaces (
+CREATE TABLE IF NOT EXISTS workspaces (
   workspace_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT,
@@ -165,7 +185,7 @@ CREATE TABLE workspaces (
   deleted_at TIMESTAMPTZ
 );
 
-CREATE TABLE boards (
+CREATE TABLE  IF NOT EXISTSboards (
   board_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   workspace_id UUID NOT NULL REFERENCES workspaces(workspace_id),
   name TEXT NOT NULL,
@@ -176,21 +196,21 @@ CREATE TABLE boards (
   deleted_at TIMESTAMPTZ
 );
 
-CREATE TABLE board_members (
+CREATE TABLE IF NOT EXISTS board_members (
   board_id UUID REFERENCES boards(board_id) ON DELETE CASCADE,
   employee_id UUID REFERENCES employees(employee_id) ON DELETE CASCADE,
   assigned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (board_id, employee_id)
 );
 
-CREATE TABLE status_groups (
+CREATE TABLE IF NOT EXISTS status_groups (
   status_group_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   board_id UUID NOT NULL REFERENCES boards(board_id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   position INT NOT NULL DEFAULT 0
 );
 
-CREATE TABLE tasks (
+CREATE TABLE IF NOT EXISTS tasks (
   task_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   board_id UUID NOT NULL REFERENCES boards(board_id),
   status_group_id UUID REFERENCES status_groups(status_group_id),
@@ -207,14 +227,14 @@ CREATE TABLE tasks (
   deleted_at TIMESTAMPTZ
 );
 
-CREATE TABLE task_assignees (
+CREATE TABLE IF NOT EXISTS task_assignees (
   task_id UUID REFERENCES tasks(task_id) ON DELETE CASCADE,
   employee_id UUID REFERENCES employees(employee_id) ON DELETE CASCADE,
   assigned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (task_id, employee_id)
 );
 
-CREATE TABLE task_activity (
+CREATE TABLE IF NOT EXISTS task_activity (
   activity_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   task_id UUID NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
   actor_id UUID REFERENCES users(user_id),

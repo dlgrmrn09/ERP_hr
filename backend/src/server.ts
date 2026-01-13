@@ -24,7 +24,24 @@ initializeUploadStorage();
 
 app.use(
   cors({
-    origin: process.env["CLIENT_URL"],
+    origin: (origin, callback) => {
+      const rawAllowedOrigins =
+        process.env["CLIENT_URLS"] ?? process.env["CLIENT_URL"] ?? "";
+      const allowedOrigins = rawAllowedOrigins
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(null, false);
+    },
     credentials: true,
   })
 );
