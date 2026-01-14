@@ -12,6 +12,7 @@ import workspaceRoutes from "./routes/workspaces";
 import boardRoutes from "./routes/boards";
 import taskRoutes from "./routes/tasks";
 import dashboardRoutes from "./routes/dashboard";
+import salaryRoutes from "./routes/salaries";
 import { notFound, errorHandler } from "./middleware/errorHandler";
 import { initializeRBAC } from "./services/bootstrapService";
 import { initializeUploadStorage, getUploadRoot } from "./utils/storage";
@@ -66,6 +67,7 @@ app.use("/api/workspaces", workspaceRoutes);
 app.use("/api/boards", boardRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/salaries", salaryRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

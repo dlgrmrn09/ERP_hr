@@ -4,8 +4,6 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { parsePagination, buildPaginationMeta } from "../utils/pagination";
 import { resolveFileUrl, toAbsoluteFileUrl } from "../utils/storage";
 
-type AuthenticatedRequest = Request & { user?: { id: number } };
-
 const baseSelect = `
 SELECT d.document_id AS id,
        d.title,
@@ -114,7 +112,7 @@ const resolveCategoryId = async (name: string): Promise<number | undefined> => {
 };
 
 export const createDocument = asyncHandler(
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: Request, res: Response) => {
     const { title, description, fileUrl, fileSizeBytes, category } = req.body;
     const uploadedFile = req.file;
 
@@ -129,7 +127,9 @@ export const createDocument = asyncHandler(
 
     const categoryId = await resolveCategoryId(category);
     if (!categoryId) {
-      return res.status(400).json({ message: "Бичиг Баримтны төрөл олдсонгүй" });
+      return res
+        .status(400)
+        .json({ message: "Бичиг Баримтны төрөл олдсонгүй" });
     }
 
     const insertResult = await pool.query(
@@ -153,11 +153,9 @@ export const createDocument = asyncHandler(
     );
 
     const created = document.rows[0];
-    return res
-      .status(201)
-      .json({
-        document: { ...created, file_url: toAbsoluteFileUrl(created.file_url) },
-      });
+    return res.status(201).json({
+      document: { ...created, file_url: toAbsoluteFileUrl(created.file_url) },
+    });
   }
 );
 
@@ -201,7 +199,9 @@ export const updateDocument = asyncHandler(
     if (category) {
       const categoryId = await resolveCategoryId(category);
       if (!categoryId) {
-        return res.status(400).json({ message: "Бичиг Баримтны төрөл олдсонгүй" });
+        return res
+          .status(400)
+          .json({ message: "Бичиг Баримтны төрөл олдсонгүй" });
       }
       updates.push(`category_id = $${idx}`);
       values.push(categoryId);

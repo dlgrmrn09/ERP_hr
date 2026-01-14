@@ -2,17 +2,6 @@ import pool from "../config/db";
 import { asyncHandler } from "../utils/asyncHandler";
 import { parsePagination, buildPaginationMeta } from "../utils/pagination";
 
-declare global {
-  namespace Express {
-    interface User {
-      id?: number;
-    }
-    interface Request {
-      user?: User;
-    }
-  }
-}
-
 const workspaceSelect = `
 SELECT w.workspace_id AS id,
        w.name,

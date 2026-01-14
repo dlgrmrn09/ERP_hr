@@ -5,6 +5,6 @@
 dist/
 node_modules/
 
-API_SCHEMA.md
+
 package-lock.json
 tsconfig.json

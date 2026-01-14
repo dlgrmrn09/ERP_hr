@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import pool from "../config/db";
 
-type PermissionRow = { module: string; action: string };
+export type PermissionRow = { module: string; action: string };
 type UserRow = {
   user_id: number;
   email: string;
@@ -17,20 +17,6 @@ interface TokenPayload extends JwtPayload {
   id: string;
 }
 
-interface AuthenticatedUser {
-  id: number;
-  email: string;
-  firstName: string;
-  lastName: string;
-  roleId: number;
-  roleName: string;
-  permissions: PermissionRow[];
-}
-
-interface AuthenticatedRequest extends Request {
-  user?: AuthenticatedUser;
-}
-
 const extractToken = (req: Request): string | null => {
   if (req.cookies?.["token"]) {
     return req.cookies["token"];
@@ -43,7 +29,7 @@ const extractToken = (req: Request): string | null => {
 };
 
 export const protect = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
